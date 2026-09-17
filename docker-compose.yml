@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lingoprep-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: lingoprep
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./BE
+      dockerfile: Dockerfile
+    container_name: lingoprep-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/lingoprep
+      JWT_SECRET_KEY: lingoprep_super_secret_jwt_key_for_development_2026
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:
