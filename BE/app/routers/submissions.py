@@ -148,14 +148,23 @@ async def submit_speaking(
 
     # 3. AI Speaking Evaluation
     try:
-        eval_result = await SpeakingEvaluator.evaluate(
-            exam_type=question.exam_type.value,
-            part=question.part,
-            prompt=question.prompt,
-            transcript=final_transcript,
-            duration_seconds=duration_seconds,
-            speaking_rate_wpm=wpm
-        )
+        if saved_audio_path and os.path.exists(saved_audio_path):
+            eval_result = await SpeakingEvaluator.evaluate_from_audio(
+                exam_type=question.exam_type.value,
+                part=question.part,
+                prompt=question.prompt,
+                audio_path=saved_audio_path,
+                client_transcript=transcript
+            )
+        else:
+            eval_result = await SpeakingEvaluator.evaluate(
+                exam_type=question.exam_type.value,
+                part=question.part,
+                prompt=question.prompt,
+                transcript=final_transcript,
+                duration_seconds=duration_seconds,
+                speaking_rate_wpm=wpm
+            )
 
         assessment = Assessment(
             submission_id=sub.id,

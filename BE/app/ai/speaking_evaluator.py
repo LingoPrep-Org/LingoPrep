@@ -1,12 +1,105 @@
 import re
 import logging
-from typing import Dict, Any, List
-from app.ai.gateway import AIGateway
+from typing import Dict, Any, Optional
+from app.ai.ollama_service import OllamaService, SPEAKING_SYSTEM_PROMPT
+from app.ai.phoneme_evaluator import PhonemeEvaluator
+from app.ai.asr_service import ASRService
 from app.ai.cefr_mapper import ielts_band_to_cefr, calculate_overall_band
+import os
 
 logger = logging.getLogger(__name__)
 
+UNCLEAR_MESSAGE = "không rõ âm thanh hoặc độ dài chưa đủ"
+
 class SpeakingEvaluator:
+    """
+    Dual-stream speaking evaluation engine adhering to AI task rule.md:
+    Stream A: Acoustic phoneme recognition & error detection via slplab/wav2vec2-large-robust-L2-english-phoneme-recognition
+    Stream B: Automatic speech recognition via Qwen/Qwen3-ASR-0.6B
+    Logic & Linguistic Evaluation: Comprehensive grading via Ollama qwen3:4b-instruct
+    Pinpoints EXACTLY which word and which position in the speaker's speech had pronunciation errors.
+    """
+
+    @classmethod
+    async def evaluate_from_audio(
+        cls,
+        exam_type: str,
+        part: str,
+        prompt: str,
+        audio_path: str,
+        client_transcript: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Executes the full dual-stream speaking evaluation from raw audio.
+        """
+        logger.info(f"Initiating dual-stream speaking evaluation for audio: {audio_path}")
+
+        # 1. Stream B: Speech-to-Text Transcription via Qwen3-ASR-0.6B
+        asr_results = await ASRService.transcribe(
+            audio_path=audio_path,
+            language="English",
+            client_transcript=client_transcript
+        )
+
+        transcript = asr_results.get("transcript", "")
+        duration_seconds = int(asr_results.get("duration_seconds", 0))
+        wpm = asr_results.get("speaking_rate_wpm", 0.0)
+
+        # Check if audio was unclear or too short
+        if transcript == UNCLEAR_MESSAGE or asr_results.get("is_unclear"):
+            return {
+                "overall_band": 0.0,
+                "overall_cefr": "N/A",
+                "fluency_score": 0.0,
+                "lexical_score": 0.0,
+                "grammar_score": 0.0,
+                "pronunciation_score": 0.0,
+                "criteria_breakdown": {
+                    "fluency": {"score": 0.0, "feedback": "Không thể đánh giá độ trôi chảy do không rõ âm thanh hoặc độ dài chưa đủ."},
+                    "lexical": {"score": 0.0, "feedback": "Không có dữ liệu từ vựng hợp lệ để chấm điểm."},
+                    "grammar": {"score": 0.0, "feedback": "Không phát hiện được câu văn hoàn chỉnh."},
+                    "pronunciation": {"score": 0.0, "feedback": "Âm học không rõ ràng hoặc thời lượng nói dưới 1 giây."}
+                },
+                "acoustic_phoneme_feedback": [],
+                "strengths": [],
+                "weaknesses": ["Âm thanh không rõ ràng hoặc bản ghi quá ngắn."],
+                "inline_feedback": [],
+                "model_answer": "Vui lòng thu âm lại rõ ràng hơn, thời lượng khuyến nghị từ 5-10 giây trở lên.",
+                "recommendations": [
+                    "Kiểm tra lại quyền truy cập microphone trên trình duyệt.",
+                    "Nói to, rõ ràng và giữ khoảng cách ổn định với micro.",
+                    "Thu âm câu trả lời hoàn chỉnh ít nhất 5-10 giây."
+                ],
+                "phoneme_analysis": {
+                    "status": "unclear",
+                    "message": UNCLEAR_MESSAGE,
+                    "acoustic_pronunciation_score": 0,
+                    "phoneme_error_rate_pct": 0,
+                    "error_phonemes": [],
+                    "detailed_errors": [],
+                    "word_level_errors": []
+                },
+                "asr_metadata": asr_results
+            }
+
+        # 2. Stream A: Direct Acoustic Phoneme Analysis with Word Alignment
+        phoneme_results = PhonemeEvaluator.analyze_audio_acoustics(
+            audio_path=audio_path,
+            transcript=transcript
+        )
+
+        # 3. Comprehensive Logic & Linguistic Grading via Ollama qwen3:4b-instruct
+        return await cls.evaluate_linguistic_and_acoustic(
+            exam_type=exam_type,
+            part=part,
+            prompt=prompt,
+            transcript=transcript,
+            phoneme_data=phoneme_results,
+            duration_seconds=duration_seconds,
+            speaking_rate_wpm=wpm,
+            asr_metadata=asr_results
+        )
+
     @classmethod
     async def evaluate(
         cls,
@@ -15,59 +108,105 @@ class SpeakingEvaluator:
         prompt: str,
         transcript: str,
         duration_seconds: int = 60,
-        speaking_rate_wpm: float = 120.0
+        speaking_rate_wpm: float = 120.0,
+        audio_path: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Evaluates an IELTS or Aptis speaking attempt based on candidate's audio transcript,
-        tempo metrics, and pronunciation/fluency signals.
+        Standard evaluation interface. If audio_path is provided, runs full acoustic stream.
+        """
+        if transcript == UNCLEAR_MESSAGE:
+            return cls._unclear_response()
+
+        phoneme_results = None
+        if audio_path and os.path.exists(audio_path):
+            phoneme_results = PhonemeEvaluator.analyze_audio_acoustics(audio_path, transcript=transcript)
+        else:
+            phoneme_results = PhonemeEvaluator.analyze_audio_acoustics("", transcript=transcript)
+
+        return await cls.evaluate_linguistic_and_acoustic(
+            exam_type=exam_type,
+            part=part,
+            prompt=prompt,
+            transcript=transcript,
+            phoneme_data=phoneme_results,
+            duration_seconds=duration_seconds,
+            speaking_rate_wpm=speaking_rate_wpm
+        )
+
+    @classmethod
+    async def evaluate_linguistic_and_acoustic(
+        cls,
+        exam_type: str,
+        part: str,
+        prompt: str,
+        transcript: str,
+        phoneme_data: Dict[str, Any],
+        duration_seconds: int = 60,
+        speaking_rate_wpm: float = 120.0,
+        asr_metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Combines acoustic phoneme findings and ASR transcript into Ollama qwen3:4b-instruct prompt,
+        highlighting EXACT words and sentence positions that had errors.
         """
         words = transcript.strip().split()
         word_count = len(words)
 
-        system_instruction = (
-            "You are a Cambridge certified IELTS Speaking Examiner and British Council Aptis Specialist. "
-            "Assess the spoken English response provided in the transcript and speech timing signals. "
-            "Score on Fluency & Coherence, Lexical Resource, Grammatical Range & Accuracy, and Pronunciation. "
-            "Return valid JSON with:\n"
-            "{\n"
-            '  "overall_band": float,\n'
-            '  "overall_cefr": string ("A2", "B1", "B2", "C1", "C2"),\n'
-            '  "fluency_score": float,\n'
-            '  "lexical_score": float,\n'
-            '  "grammar_score": float,\n'
-            '  "pronunciation_score": float,\n'
-            '  "criteria_breakdown": {\n'
-            '     "fluency": {"score": float, "feedback": string},\n'
-            '     "lexical": {"score": float, "feedback": string},\n'
-            '     "grammar": {"score": float, "feedback": string},\n'
-            '     "pronunciation": {"score": float, "feedback": string}\n'
-            "  },\n"
-            '  "strengths": [string],\n'
-            '  "weaknesses": [string],\n'
-            '  "inline_feedback": [\n'
-            '     {"original": string, "improved": string, "explanation": string, "category": string}\n'
-            "  ],\n"
-            '  "model_answer": string,\n'
-            '  "recommendations": [string]\n'
-            "}"
-        )
+        # Build detailed word-level error description for LLM prompt
+        word_errors = phoneme_data.get("detailed_errors", []) or []
+        word_err_str_list = []
+        for we in word_errors:
+            word_err_str_list.append(
+                f"- Word #{we.get('word_index')} ('{we.get('word')}'): Mispronounced sound {we.get('target_sound')} ({we.get('error_token')}). Context: {we.get('sentence_context')}"
+            )
+        word_errors_text = "\n".join(word_err_str_list) if word_err_str_list else "None detected."
 
         user_prompt = (
-            f"Exam Type: {exam_type}\n"
-            f"Part: {part}\n"
-            f"Prompt: {prompt}\n"
-            f"Candidate Transcript ({word_count} words, Duration: {duration_seconds}s, Pacing: {speaking_rate_wpm} WPM):\n"
-            f"{transcript}\n"
+            f"Candidate Speaking Submission:\n"
+            f"- Exam Type: {exam_type}\n"
+            f"- Part/Task: {part}\n"
+            f"- Question Prompt: {prompt}\n"
+            f"- Candidate Transcript (Word count: {word_count}, Duration: {duration_seconds}s, Pace: {speaking_rate_wpm} WPM):\n"
+            f'"{transcript}"\n\n'
+            f"Acoustic Wav2Vec2 L2 Phoneme Recognition Findings (Word-by-Word Alignment):\n"
+            f"- Acoustic Pronunciation Score: {phoneme_data.get('acoustic_pronunciation_score', 75)}/100\n"
+            f"- Phoneme Error Rate: {phoneme_data.get('phoneme_error_rate_pct', 8.5)}%\n"
+            f"- Specific Words and Positions with Pronunciation Errors:\n{word_errors_text}\n\n"
+            f"Assess the response across Fluency, Lexical Resource, Grammar, and Pronunciation. "
+            f"In your pronunciation feedback, explicitly name the mispronounced words and their positions, "
+            f"provide phonetic coaching, and craft a natural Band 8.5 model answer for this prompt."
         )
 
-        llm_result = await AIGateway.generate_json(user_prompt, system_instruction)
+        # 1. Query Ollama qwen3:4b-instruct
+        llm_result = await OllamaService.generate_json(
+            prompt=user_prompt,
+            system_prompt=SPEAKING_SYSTEM_PROMPT,
+            temperature=0.2
+        )
+
         if llm_result and "overall_band" in llm_result and "criteria_breakdown" in llm_result:
+            llm_result["phoneme_analysis"] = phoneme_data
+            llm_result["transcript"] = transcript
+            if asr_metadata:
+                llm_result["asr_metadata"] = asr_metadata
             return llm_result
 
-        # Fallback linguistic & acoustic evaluator
-        return cls._offline_speaking_evaluation(
-            exam_type, part, prompt, transcript, duration_seconds, speaking_rate_wpm, word_count
+        logger.warning("Ollama evaluation fallback triggered; computing acoustic-linguistic score.")
+        result = cls._offline_speaking_evaluation(
+            exam_type=exam_type,
+            part=part,
+            prompt=prompt,
+            transcript=transcript,
+            duration=duration_seconds,
+            wpm=speaking_rate_wpm,
+            word_count=word_count,
+            phoneme_data=phoneme_data
         )
+        result["phoneme_analysis"] = phoneme_data
+        result["transcript"] = transcript
+        if asr_metadata:
+            result["asr_metadata"] = asr_metadata
+        return result
 
     @classmethod
     def _offline_speaking_evaluation(
@@ -78,92 +217,43 @@ class SpeakingEvaluator:
         transcript: str,
         duration: int,
         wpm: float,
-        word_count: int
+        word_count: int,
+        phoneme_data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        # Fluency heuristics based on WPM (Ideal English speech is ~110-140 WPM)
-        if 110 <= wpm <= 155:
+        if 110 <= wpm <= 160:
+            fc_score = 7.0
+        elif 90 <= wpm < 110 or 160 < wpm <= 180:
             fc_score = 6.5
-        elif 90 <= wpm < 110 or 155 < wpm <= 175:
-            fc_score = 6.0
         else:
-            fc_score = 5.5
+            fc_score = 6.0
 
-        # Check discourse markers
-        fillers = ["well", "honestly", "you know", "actually", "in my perspective", "to be fair"]
-        found_fillers = [f for f in fillers if f in transcript.lower()]
-        if len(found_fillers) >= 2:
-            fc_score = min(8.0, fc_score + 0.5)
+        acoustic_band = phoneme_data.get("ielts_pronunciation_band", 6.5)
+        pr_score = float(acoustic_band) if acoustic_band > 0 else 6.0
 
-        # Lexical resource check
-        collocations = ["fundamental", "predominantly", "crucial", "pros and cons", "integral part", "fascinating"]
-        found_collocations = [c for c in collocations if c in transcript.lower()]
-        lr_score = 6.0 + min(1.5, len(found_collocations) * 0.4)
-
-        # Grammar & Accuracy
-        gra_score = 6.0
-        if "because" in transcript.lower() or "although" in transcript.lower() or "which" in transcript.lower():
-            gra_score = 6.5
-
-        # Pronunciation score
-        pr_score = 6.5
-
-        def round_step(val):
-            return round(val * 2) / 2
-
-        fc_score = min(8.5, max(4.5, round_step(fc_score)))
-        lr_score = min(8.5, max(4.5, round_step(lr_score)))
-        gra_score = min(8.5, max(4.5, round_step(gra_score)))
-        pr_score = min(8.5, max(4.5, round_step(pr_score)))
+        lr_score = 6.5 if word_count >= 50 else 6.0
+        gra_score = 6.5 if ("because" in transcript.lower() or "which" in transcript.lower() or "although" in transcript.lower()) else 6.0
 
         overall_band = calculate_overall_band([fc_score, lr_score, gra_score, pr_score])
         overall_cefr = ielts_band_to_cefr(overall_band)
 
-        inline_feedback = [
-            {
-                "original": "I like it very much because it is good.",
-                "improved": "I am deeply passionate about it as it offers immense practical benefits.",
-                "explanation": "Replace basic adjectives with idiomatic phrases to boost Lexical Resource.",
-                "category": "Vocabulary Expansion"
-            },
-            {
-                "original": "In the past, people do not have smartphone...",
-                "improved": "In the past, people did not possess smartphones...",
-                "explanation": "Ensure consistent past simple tense when narrating historical contexts.",
-                "category": "Grammar Accuracy"
-            },
-            {
-                "original": "Pronunciation signal: 'transformed'",
-                "improved": "Emphasize the second syllable: /trænsˈfɔːmd/ with a clean final consonant cluster.",
-                "explanation": "Focus on consonant endings to enhance Pronunciation clarity.",
-                "category": "Phonology & Stress"
-            }
-        ]
+        acoustic_feedback = []
+        for err in phoneme_data.get("detailed_errors", []):
+            acoustic_feedback.append({
+                "word": err.get("word", ""),
+                "word_index": err.get("word_index", 0),
+                "position_label": err.get("position_label", ""),
+                "sentence_context": err.get("sentence_context", ""),
+                "phoneme_error": err.get("error_token", "err"),
+                "target_sound": err.get("target_sound", "/sound/"),
+                "guidance": err.get("diagnostic", "Improve phonetic articulation.")
+            })
 
-        strengths = [
-            f"Steady tempo ({round(wpm)} WPM) allowing clear listener comprehension.",
-            f"Natural conversational markers used effectively ({', '.join(found_fillers[:2]) if found_fillers else 'good sentence connectors'}).",
-            "Extended response with relevant supporting anecdotes."
-        ]
-
-        weaknesses = [
-            "Minor hesitation detected before complex technical terms.",
-            "Tendency to repeat common words like 'good' or 'nice' instead of topic-specific collocations.",
-            "Intonation in questions/complex clauses could be more expressive."
-        ]
-
-        model_answer = (
-            f"Regarding {prompt[:60]}... I would say it plays a pivotal role in my life. "
-            "First and foremost, it has opened up remarkable opportunities for personal growth and cross-cultural communication. "
-            "For instance, whenever I interact with colleagues from diverse backgrounds, I notice how seamless collaboration "
-            "becomes when ideas are articulated clearly. Naturally, there are instances where challenges arise, "
-            "yet the overwhelming benefits certainly outweigh any minor setbacks."
-        )
-
-        recommendations = [
-            "Shadow native English podcasts for 10 minutes daily to internalize connected speech and sentence stress.",
-            "Practice the 'PEEL' speaking framework: Point, Explain, Example, Link back.",
-            "Record your speech and count filler words ('um', 'uh') to develop silent pauses instead."
-        ]
+        detailed_errs = phoneme_data.get("detailed_errors", [])
+        if detailed_errs:
+            err_pos_list = [f"từ #{e.get('word_index')} '{e.get('word')}'" for e in detailed_errs]
+            weakness_msg = f"Các vị trí từ phát âm sai: {', '.join(err_pos_list)}"
+        else:
+            weakness_msg = "Cần chú ý phát âm rõ các âm cuối và các nguyên âm đôi."
 
         return {
             "overall_band": overall_band,
@@ -175,24 +265,78 @@ class SpeakingEvaluator:
             "criteria_breakdown": {
                 "fluency": {
                     "score": fc_score,
-                    "feedback": f"Maintained continuous speech at {round(wpm)} WPM with natural rhythm and minimal abrupt stops."
+                    "feedback": f"Duy trì nhịp nói ở mức {round(wpm)} WPM với các cụm từ đệm tự nhiên."
                 },
                 "lexical": {
                     "score": lr_score,
-                    "feedback": "Demonstrated sufficient vocabulary flexibility to discuss personal topics and abstract notions."
+                    "feedback": "Vốn từ vựng tương đối linh hoạt, sử dụng phù hợp với chủ đề bài thi."
                 },
                 "grammar": {
                     "score": gra_score,
-                    "feedback": "Frequently used subordinate clauses (although, whereas) with accurate tense agreements."
+                    "feedback": "Cấu trúc câu rõ ràng, có sự kết hợp giữa câu đơn và mệnh đề phụ thuộc."
                 },
                 "pronunciation": {
                     "score": pr_score,
-                    "feedback": "Clear articulation throughout; sentence stress and intonation contributed positively to meaning."
+                    "feedback": f"Phân tích âm học đạt {phoneme_data.get('acoustic_pronunciation_score', 75)}/100. "
+                                f"Tỷ lệ lỗi âm học là {phoneme_data.get('phoneme_error_rate_pct', 8.5)}%."
                 }
             },
-            "strengths": strengths,
-            "weaknesses": weaknesses,
-            "inline_feedback": inline_feedback,
-            "model_answer": model_answer,
-            "recommendations": recommendations
+            "acoustic_phoneme_feedback": acoustic_feedback,
+            "strengths": [
+                f"Tốc độ phát âm ổn định ({round(wpm)} WPM) giúp người nghe dễ theo dõi.",
+                "Chuyển ý tự nhiên giữa các phần của câu trả lời."
+            ],
+            "weaknesses": [
+                weakness_msg
+            ],
+            "inline_feedback": [
+                {
+                    "original": transcript[:60] if len(transcript) > 60 else transcript,
+                    "improved": "I am firmly convinced that taking proactive steps creates lasting benefits.",
+                    "explanation": "Nâng cấp các cụm từ mở đầu bằng lối diễn đạt tự tin và học thuật hơn.",
+                    "category": "Vocabulary Expansion"
+                }
+            ],
+            "model_answer": (
+                f"Regarding {prompt[:60]}... I would say that it has had a profound impact on my daily routine. "
+                "First of all, it enables more flexible communication and saves valuable time. "
+                "Furthermore, although certain minor setbacks occasionally happen, the substantial advantages "
+                "definitely make it an indispensable part of modern living."
+            ),
+            "recommendations": [
+                "Luyện tập phát âm lại các từ bị đánh dấu sai vị trí trong câu.",
+                "Thực hiện phương pháp Shadowing 10 phút mỗi ngày để bắt chước ngữ điệu bản xứ.",
+                "Chú ý phát âm rõ các phụ âm cuối và các âm khó như /θ/, /ʒ/, /tʃ/."
+            ]
+        }
+
+    @classmethod
+    def _unclear_response(cls) -> Dict[str, Any]:
+        return {
+            "overall_band": 0.0,
+            "overall_cefr": "N/A",
+            "fluency_score": 0.0,
+            "lexical_score": 0.0,
+            "grammar_score": 0.0,
+            "pronunciation_score": 0.0,
+            "criteria_breakdown": {
+                "fluency": {"score": 0.0, "feedback": UNCLEAR_MESSAGE},
+                "lexical": {"score": 0.0, "feedback": UNCLEAR_MESSAGE},
+                "grammar": {"score": 0.0, "feedback": UNCLEAR_MESSAGE},
+                "pronunciation": {"score": 0.0, "feedback": UNCLEAR_MESSAGE}
+            },
+            "acoustic_phoneme_feedback": [],
+            "strengths": [],
+            "weaknesses": [UNCLEAR_MESSAGE],
+            "inline_feedback": [],
+            "model_answer": "Vui lòng thu âm lại rõ ràng hơn.",
+            "recommendations": [
+                "Nói to, rõ ràng và đủ thời lượng tối thiểu từ 5-10 giây trở lên."
+            ],
+            "phoneme_analysis": {
+                "status": "unclear",
+                "message": UNCLEAR_MESSAGE,
+                "detailed_errors": [],
+                "word_level_errors": []
+            }
         }

@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LingoPrep AI Engine - Interactive Test Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --accent: #8b5cf6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 24px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .brand h1 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #60a5fa, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand p { font-size: 0.85rem; color: var(--text-muted); }
+    .status-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge {
+      font-size: 0.72rem;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .badge-success { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .badge-primary { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+    .badge-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+
+    /* Navigation Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      background: var(--card-bg);
+      padding: 6px;
+      border-radius: var(--radius);
+      border: 1px solid var(--card-border);
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 16px;
+      background: transparent;
+      color: var(--text-muted);
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .tab-btn:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.05); }
+    .tab-btn.active {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    /* Tab Panels */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Forms */
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    input[type="text"], textarea, select {
+      width: 100%;
+      background: #0b1120;
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      outline: none;
+      transition: border 0.2s;
+    }
+    input[type="text"]:focus, textarea:focus, select:focus { border-color: var(--primary); }
+    textarea { resize: vertical; min-height: 120px; }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: #334155; color: white; }
+    .btn-secondary:hover { background: #475569; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-success { background: var(--success); color: white; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Audio Recording Section */
+    .record-controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .record-timer {
+      font-size: 1.1rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--danger);
+      display: none;
+    }
+    .record-timer.active { display: inline-block; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .audio-player-container {
+      margin-top: 16px;
+      padding: 14px;
+      background: #0b1120;
+      border: 1px dashed var(--primary);
+      border-radius: 8px;
+      display: none;
+    }
+    .audio-player-container.show { display: block; }
+    audio { width: 100%; margin-top: 8px; outline: none; }
+
+    /* Results Dashboard Grid */
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .score-card {
+      background: #0b1120;
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      text-align: center;
+    }
+    .score-val {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #60a5fa;
+      line-height: 1.1;
+    }
+    .score-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-transform: uppercase;
+    }
+
+    /* Phoneme Error Chips */
+    .phoneme-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .phoneme-chip {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .phoneme-chip .ipa { font-size: 0.95rem; font-weight: 700; color: #ef4444; }
+
+    /* Inline Feedback */
+    .feedback-item {
+      background: #0b1120;
+      border-left: 4px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .feedback-category { font-size: 0.75rem; font-weight: 700; color: #93c5fd; text-transform: uppercase; }
+    .feedback-orig { color: #fca5a5; text-decoration: line-through; margin: 4px 0; font-size: 0.88rem; }
+    .feedback-imp { color: #86efac; font-weight: 600; font-size: 0.88rem; }
+    .feedback-exp { color: var(--text-muted); font-size: 0.8rem; margin-top: 4px; }
+
+    /* Chat Thread */
+    .chat-box {
+      height: 380px;
+      overflow-y: auto;
+      padding: 16px;
+      background: #0b1120;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .chat-msg {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    .chat-msg.user {
+      align-self: flex-end;
+      background: var(--primary);
+      color: white;
+      border-bottom-right-radius: 2px;
+    }
+    .chat-msg.bot {
+      align-self: flex-start;
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      border-bottom-left-radius: 2px;
+    }
+    .chat-tip {
+      font-size: 0.8rem;
+      margin-top: 8px;
+      padding: 6px 10px;
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 6px;
+      color: #c4b5fd;
+    }
+
+    /* Loader */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-overlay {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 18px;
+      background: rgba(15, 23, 42, 0.8);
+      border-radius: 8px;
+      margin: 12px 0;
+      border: 1px solid var(--primary);
+      color: #93c5fd;
+      font-weight: 600;
+    }
+    .loading-overlay.show { display: flex; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="brand">
+        <h1>🎙️ LingoPrep AI Studio</h1>
+        <p>Acoustic Phoneme Recognition (wav2vec2-L2) • Speech-to-Text (Qwen3-ASR) • Logic LLM (qwen3:4b-instruct) • Web Speech TTS</p>
+      </div>
+      <div class="status-badges">
+        <span class="badge badge-success">● Ollama: qwen3:4b-instruct</span>
+        <span class="badge badge-primary">● wav2vec2-L2 English Phoneme</span>
+        <span class="badge badge-primary">● Qwen3-ASR-0.6B</span>
+        <span class="badge badge-warning">● Mozilla Web Speech API</span>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('speaking')">
+        <span>🎤</span> Speaking Assessment (Dual-Stream)
+      </button>
+      <button class="tab-btn" onclick="switchTab('writing')">
+        <span>✍️</span> Writing Evaluation & Rewriter
+      </button>
+      <button class="tab-btn" onclick="switchTab('chat')">
+        <span>💬</span> AI Tutor & Q&A Chatbot
+      </button>
+      <button class="tab-btn" onclick="switchTab('tts')">
+        <span>🔊</span> Text-To-Speech (Mozilla API)
+      </button>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- TAB 1: SPEAKING ASSESSMENT                                      -->
+    <!-- ============================================================== -->
+    <div id="tab-speaking" class="tab-content active">
+      <div class="card">
+        <div class="card-title">
+          <span>Speaking Practice & Acoustic Recording</span>
+          <span class="badge badge-primary">Acoustic + Linguistic Pipeline</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label">Exam Type</label>
+            <select id="spk-exam-type">
+              <option value="IELTS">IELTS Speaking (Part 1, 2, 3)</option>
+              <option value="Aptis">British Council Aptis Speaking</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Task / Part</label>
+            <select id="spk-part">
+              <option value="Part 2">Part 2: Long Turn (Cue Card)</option>
+              <option value="Part 1">Part 1: Introduction & Interview</option>
+              <option value="Part 3">Part 3: Two-way Discussion</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Topic Prompt</label>
+          <input type="text" id="spk-prompt" value="Describe an important decision you made that had a major positive impact on your life.">
+        </div>
+
+        <!-- Recording Controls -->
+        <div class="card" style="background: #0b1120; border: 1px solid #334155;">
+          <div class="card-title" style="font-size: 0.95rem;">
+            <span>Record Your Spoken Response</span>
+            <span id="record-timer" class="record-timer">00:00</span>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+            Audio will be saved in your candidate cache so you can listen back and re-record until you are satisfied.
+          </p>
+          <div class="record-controls">
+            <button id="btn-record-start" class="btn btn-danger" onclick="startRecording()">
+              <span>●</span> Start Recording
+            </button>
+            <button id="btn-record-stop" class="btn btn-secondary" onclick="stopRecording()" disabled>
+              <span>■</span> Stop Recording
+            </button>
+            <span style="font-size: 0.85rem; color: var(--text-muted); margin: 0 8px;">OR Upload file:</span>
+            <input type="file" id="spk-audio-file" accept="audio/*" onchange="handleFileUpload(event)" style="font-size: 0.8rem; width: auto; color: var(--text-muted);">
+          </div>
+
+          <!-- Playback Cache Container -->
+          <div id="audio-cache-box" class="audio-player-container">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.85rem; font-weight: 600; color: #60a5fa;">
+                🎧 Candidate Audio Staging Cache (Listen Back)
+              </span>
+              <span id="cache-status" style="font-size: 0.75rem; color: var(--text-muted);">Cached ready for review</span>
+            </div>
+            <audio id="audio-player" controls></audio>
+
+            <div style="margin-top: 12px;">
+              <label class="form-label" style="font-size: 0.8rem; color: #94a3b8;">
+                📝 Lời nói của bạn (Được tự động nhận diện bởi Qwen3-ASR / Web Speech - bạn có thể chỉnh sửa nếu muốn):
+              </label>
+              <textarea id="spk-transcript" rows="3" placeholder="Lời nói sẽ tự động hiển thị tại đây khi thu âm hoặc sau khi Qwen3-ASR xử lý..." style="font-size: 0.85rem;"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 12px;">
+              <button id="btn-submit-eval" class="btn btn-primary" onclick="submitSpeakingEvaluation()">
+                <span>🚀</span> Chấm Điểm (Submit for AI Assessment)
+              </button>
+              <button class="btn btn-secondary" onclick="clearRecordingCache()">
+                <span>🗑️</span> Discard & Re-record
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="spk-loading" class="loading-overlay">
+          <div class="spinner"></div>
+          <span>Analyzing acoustic phonemes with wav2vec2-L2, transcribing with Qwen3-ASR, and scoring with qwen3:4b-instruct...</span>
+        </div>
+
+        <!-- Speaking Assessment Results -->
+        <div id="spk-results" style="display: none; margin-top: 24px;">
+          <h3 style="margin-bottom: 16px; font-size: 1.2rem; font-weight: 800; color: #93c5fd;">
+            📊 Comprehensive Speaking Evaluation Report
+          </h3>
+
+          <!-- Score Cards -->
+          <div class="score-grid">
+            <div class="score-card">
+              <div class="score-val" id="res-overall-band">6.5</div>
+              <div class="score-label">Overall Band</div>
+              <div id="res-overall-cefr" style="font-size: 0.75rem; color: #34d399; font-weight: 700;">CEFR B2</div>
+            </div>
+            <div class="score-card">
+              <div class="score-val" id="res-fc-score">6.5</div>
+              <div class="score-label">Fluency & Coherence</div>
+            </div>
+            <div class="score-card">
+              <div class="score-val" id="res-lr-score">6.5</div>
+              <div class="score-label">Lexical Resource</div>
+            </div>
+            <div class="score-card">
+              <div class="score-val" id="res-gra-score">6.0</div>
+              <div class="score-label">Grammar & Accuracy</div>
+            </div>
+            <div class="score-card">
+              <div class="score-val" id="res-pr-score">7.0</div>
+              <div class="score-label">Pronunciation</div>
+            </div>
+          </div>
+
+          <!-- Unclear Audio Warning Banner -->
+          <div id="spk-unclear-banner" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; font-weight: 700; color: #fbbf24; font-size: 1rem;">
+              <span>⚠️</span> <span>Thông báo: không rõ âm thanh hoặc độ dài chưa đủ</span>
+            </div>
+            <p style="font-size: 0.85rem; color: #fde68a; margin-top: 6px;">
+              Hệ thống không phát hiện được giọng nói rõ ràng hoặc thời lượng bản ghi quá ngắn (&lt; 1 giây). Vui lòng thử lại: nói to, rõ ràng hơn và thu âm tối thiểu từ 5-10 giây để AI có thể phân tích âm học và nhận diện chuẩn xác.
+            </p>
+          </div>
+
+          <!-- Dual-Stream Diagnostics: Acoustic & ASR -->
+          <div id="spk-diagnostics-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+            <!-- Acoustic Phoneme Analysis Card -->
+            <div class="card" style="background: #0b1120; border-color: rgba(239, 68, 68, 0.4);">
+              <div class="card-title" style="font-size: 0.95rem; color: #fca5a5;">
+                <span>🔬 Acoustic Phoneme Recognition (wav2vec2 L2)</span>
+              </div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+                Direct acoustic analysis scored <b id="res-acoustic-score" style="color: white;">78</b>/100 
+                (Phoneme Error Rate: <b id="res-per-rate" style="color: #f87171;">7.2%</b>)
+              </div>
+              <div class="form-label" style="margin-top: 8px;">Detected Erroneous Sounds:</div>
+              <div id="res-phoneme-chips" class="phoneme-chips">
+                <!-- Chips dynamically injected -->
+              </div>
+              <div id="res-phoneme-diagnostics" style="margin-top: 12px; font-size: 0.8rem; color: #cbd5e1;">
+                <!-- Detailed phoneme diagnostics -->
+              </div>
+            </div>
+
+            <!-- ASR Transcribed Text Card -->
+            <div class="card" style="background: #0b1120; border-color: rgba(59, 130, 246, 0.4);">
+              <div class="card-title" style="font-size: 0.95rem; color: #93c5fd;">
+                <span>📝 Speech-To-Text (Qwen3-ASR-0.6B)</span>
+              </div>
+              <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">
+                Detected <b id="res-word-count" style="color: white;">64</b> words at 
+                <b id="res-wpm" style="color: #60a5fa;">128 WPM</b>
+              </div>
+              <div id="res-transcript-box" style="margin-top: 6px;">
+                <blockquote id="res-transcript" style="font-size: 0.88rem; font-style: italic; color: #e2e8f0; background: #1e293b; padding: 10px; border-radius: 6px; line-height: 1.6;">
+                  <!-- Transcript text with word highlighting -->
+                </blockquote>
+              </div>
+            </div>
+          </div>
+
+          <!-- Specific Word & Position Pronunciation Errors Card -->
+          <div id="spk-word-errors-card" class="card" style="background: #0b1120; border-color: rgba(239, 68, 68, 0.5); margin-bottom: 20px;">
+            <div class="card-title" style="font-size: 0.95rem; color: #f87171;">
+              <span>🎯 Vị Trí Từ và Âm Phát Âm Sai Trong Lời Nói (Word-Level Pronunciation Errors)</span>
+              <span id="res-error-count-badge" class="badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">0 lỗi phát âm</span>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+              Hệ thống định vị chính xác vị trí từ thứ mấy trong câu nói của bạn bị phát âm sai âm học và chỉ rõ âm chuẩn cần sửa:
+            </p>
+            <div id="res-word-error-list">
+              <!-- Word error items -->
+            </div>
+          </div>
+
+          <!-- Linguistic Inline Corrections -->
+          <div class="card">
+            <div class="card-title" style="font-size: 0.95rem;">💡 Targeted Linguistic & Phonetic Improvements</div>
+            <div id="res-inline-feedback">
+              <!-- Feedback items -->
+            </div>
+          </div>
+
+          <!-- Model Answer with TTS Listen Button -->
+          <div class="card">
+            <div class="card-title" style="font-size: 0.95rem;">
+              <span>🏆 Band 8.5+ Native Model Answer</span>
+              <button class="btn btn-secondary" onclick="speakText(document.getElementById('res-model-answer').innerText)">
+                <span>🔊</span> Listen (TTS)
+              </button>
+            </div>
+            <p id="res-model-answer" style="font-size: 0.9rem; line-height: 1.6; color: #e2e8f0; background: #0b1120; padding: 14px; border-radius: 8px;"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- TAB 2: WRITING EVALUATION                                       -->
+    <!-- ============================================================== -->
+    <div id="tab-writing" class="tab-content">
+      <div class="card">
+        <div class="card-title">
+          <span>Writing Assessment & Academic Essay Rewriter</span>
+          <span class="badge badge-success">Ollama qwen3:4b-instruct</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label">Exam Type</label>
+            <select id="wri-exam-type">
+              <option value="IELTS">IELTS Academic Task 2</option>
+              <option value="IELTS General">IELTS General Writing Task 1 (Letter)</option>
+              <option value="Aptis">British Council Aptis Writing Part 4</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Part / Min Words</label>
+            <input type="text" id="wri-min-words" value="Min 250 words">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Essay Question Prompt</label>
+          <input type="text" id="wri-prompt" value="In modern society, some argue that universities should focus strictly on providing graduates with practical vocational skills, while others believe academic theory is more essential. Discuss both views and give your opinion.">
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between;">
+            <label class="form-label">Candidate Submission</label>
+            <span id="wri-word-counter" style="font-size: 0.8rem; color: var(--text-muted);">Word count: 0</span>
+          </div>
+          <textarea id="wri-essay" oninput="updateWordCounter()" placeholder="Write or paste your essay here...">It is often argued whether higher education institutions should prioritize vocational training or theoretical knowledge. In my opinion, while hands-on technical skills enhance immediate employability, a rigorous grounding in academic theory develops critical thinking and adaptability.
+
+To begin with, advocates of vocational training emphasize that modern industries require graduates who can immediately contribute without lengthy onboarding. For example, programming and engineering students benefit immensely from project-based learning.
+
+Nevertheless, theoretical knowledge provides the foundational framework that allows professionals to innovate rather than merely execute established routines. Without deep comprehension of principles, advancing technology would be impossible.
+
+In conclusion, a balanced curriculum incorporating both practical applications and scholarly theory prepares students most effectively for long-term career resilience.</textarea>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+          <button class="btn btn-primary" onclick="submitWritingEvaluation()">
+            <span>📝</span> Evaluate Essay (IELTS/Aptis Rubric)
+          </button>
+          <button class="btn btn-secondary" onclick="improveEssayText()">
+            <span>✨</span> Elevate to C1/C2 Academic Style
+          </button>
+        </div>
+
+        <div id="wri-loading" class="loading-overlay">
+          <div class="spinner"></div>
+          <span>Analyzing essay with Ollama qwen3:4b-instruct...</span>
+        </div>
+
+        <!-- Writing Results -->
+        <div id="wri-results" style="display: none; margin-top: 24px;">
+          <div class="score-grid">
+            <div class="score-card">
+              <div class="score-val" id="wri-res-overall">7.0</div>
+              <div class="score-label">Overall Band</div>
+              <div id="wri-res-cefr" style="font-size: 0.75rem; color: #34d399; font-weight: 700;">CEFR C1</div>
+            </div>
+            <div class="score-card">
+              <div class="score-val" id="wri-res-tr">7.0</div>
+              <div class="score-label">Task Response</div>
+            </div>
+            <div class="score-card">
+              <div class="score-val" id="wri-res-cc">7.0</div>
+              <div class="score-label">Coherence & Cohesion</div>
+            </div>
+            <div class="score-card">
+              <div class="score-val" id="wri-res-lr">6.5</div>
+              <div class="score-label">Lexical Resource</div>
+            </div>
+            <div class="score-card">
+              <div class="score-val" id="wri-res-gra">7.0</div>
+              <div class="score-label">Grammar & Accuracy</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title" style="font-size: 0.95rem;">💡 Detailed Inline Corrections & Upgrades</div>
+            <div id="wri-res-feedback"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title" style="font-size: 0.95rem;">🏆 Exemplary Model Essay (Band 8.5+)</div>
+            <p id="wri-res-model" style="font-size: 0.9rem; line-height: 1.6; color: #e2e8f0; background: #0b1120; padding: 14px; border-radius: 8px; white-space: pre-line;"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- TAB 3: AI TUTOR CHAT & Q&A                                      -->
+    <!-- ============================================================== -->
+    <div id="tab-chat" class="tab-content">
+      <div class="card">
+        <div class="card-title">
+          <span>Interactive AI Tutor & Examiner Dialogue</span>
+          <span class="badge badge-success">Ollama qwen3:4b-instruct Multi-turn</span>
+        </div>
+
+        <div class="form-group" style="max-width: 320px;">
+          <label class="form-label">Select Persona & System Prompt</label>
+          <select id="chat-persona" onchange="resetChat()">
+            <option value="IELTS_EXAMINER">Examiner Davis (IELTS Speaking Examiner)</option>
+            <option value="APTIS_INTERVIEWER">British Council Aptis ESOL Examiner</option>
+            <option value="CONVERSATION_PARTNER">Alex (Friendly Native Speaker)</option>
+            <option value="GRAMMAR_COACH">English Language & Grammar Coach</option>
+          </select>
+        </div>
+
+        <div id="chat-thread" class="chat-box">
+          <div class="chat-msg bot">
+            <div>Hello! I am Examiner Davis, your IELTS Speaking Examiner today. To begin our session, could you please tell me your full name, and whether you work or study?</div>
+            <div class="chat-tip">💡 Tip: Speak clearly and use complete sentences to start strong.</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="chat-input" placeholder="Type your response to the examiner..." onkeydown="if(event.key==='Enter') sendChatMessage()">
+          <button class="btn btn-primary" onclick="sendChatMessage()">
+            <span>➤</span> Send
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- TAB 4: TEXT-TO-SPEECH (MOZILLA WEB SPEECH API & BACKEND)        -->
+    <!-- ============================================================== -->
+    <div id="tab-tts" class="tab-content">
+      <div class="card">
+        <div class="card-title">
+          <span>Mozilla Web Speech API & Text-to-Speech Studio</span>
+          <span class="badge badge-warning">Client Web Speech API + Edge-TTS</span>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">
+          Adheres to <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API/Using_the_Web_Speech_API" target="_blank" style="color: #60a5fa;">Mozilla Web Speech API specs</a> for browser synthesis with native natural voice fallback.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label">Input Text to Synthesize</label>
+          <textarea id="tts-input">Good morning, candidate. Today we are conducting Part 2 of the IELTS Speaking examination. You will have one minute to prepare your notes, after which you should speak for one to two minutes on the given topic.</textarea>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
+          <div class="form-group">
+            <label class="form-label">Browser Voice (Web Speech API)</label>
+            <select id="tts-browser-voice"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Speech Rate (<span id="tts-rate-val">0.95</span>x)</label>
+            <input type="range" id="tts-rate" min="0.5" max="1.5" step="0.05" value="0.95" oninput="document.getElementById('tts-rate-val').innerText = this.value">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Pitch (<span id="tts-pitch-val">1.0</span>)</label>
+            <input type="range" id="tts-pitch" min="0.5" max="1.5" step="0.1" value="1.0" oninput="document.getElementById('tts-pitch-val').innerText = this.value">
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <button class="btn btn-primary" onclick="speakBrowserTTS()">
+            <span>🔊</span> Speak (Mozilla Web Speech API)
+          </button>
+          <button class="btn btn-secondary" onclick="stopBrowserTTS()">
+            <span>⏹️</span> Stop Speaking
+          </button>
+          <button class="btn btn-success" onclick="synthesizeBackendTTS()">
+            <span>☁️</span> Generate Server MP3 (Edge-TTS)
+          </button>
+        </div>
+
+        <div id="tts-server-audio-box" style="margin-top: 16px; display: none;">
+          <span style="font-size: 0.85rem; color: #34d399; font-weight: 600;">Server Synthesized Audio (Edge-TTS Natural Voice):</span>
+          <audio id="tts-server-player" controls style="margin-top: 6px;"></audio>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // Tab Navigation
+    // ==========================================
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    }
+
+    // ==========================================
+    // Audio Recording & Playback Cache Logic
+    // ==========================================
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordedBlob = null;
+    let currentCacheId = null;
+    let recordInterval = null;
+    let recordSeconds = 0;
+    let liveSpeechRecognizer = null;
+    let liveTranscriptText = "";
+
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          recordedBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const audioUrl = URL.createObjectURL(recordedBlob);
+          const player = document.getElementById('audio-player');
+          player.src = audioUrl;
+          document.getElementById('audio-cache-box').classList.add('show');
+          document.getElementById('cache-status').innerText = "Uploading to candidate cache...";
+
+          // Upload to server cache endpoint
+          await uploadToCache(recordedBlob, 'candidate_answer.webm');
+        };
+
+        mediaRecorder.start();
+
+        // Optional real-time speech recognition via browser Web Speech API
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+          try {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            liveSpeechRecognizer = new SpeechRec();
+            liveSpeechRecognizer.continuous = true;
+            liveSpeechRecognizer.interimResults = true;
+            liveSpeechRecognizer.lang = 'en-US';
+            liveSpeechRecognizer.onresult = (event) => {
+              let text = "";
+              for (let i = 0; i < event.results.length; ++i) {
+                text += event.results[i][0].transcript;
+              }
+              liveTranscriptText = text;
+              const spkTx = document.getElementById('spk-transcript');
+              if (spkTx) spkTx.value = text;
+            };
+            liveSpeechRecognizer.start();
+          } catch (recErr) {
+            console.warn("Live Web Speech Recognition init notice:", recErr);
+          }
+        }
+
+        document.getElementById('btn-record-start').disabled = true;
+        document.getElementById('btn-record-stop').disabled = false;
+        
+        recordSeconds = 0;
+        const timerElem = document.getElementById('record-timer');
+        timerElem.innerText = "00:00";
+        timerElem.classList.add('active');
+        recordInterval = setInterval(() => {
+          recordSeconds++;
+          const mins = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
+          const secs = String(recordSeconds % 60).padStart(2, '0');
+          timerElem.innerText = `${mins}:${secs}`;
+        }, 1000);
+
+      } catch (err) {
+        alert("Microphone access denied or not supported: " + err.message);
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+      }
+      if (liveSpeechRecognizer) {
+        try { liveSpeechRecognizer.stop(); } catch (e) {}
+      }
+      clearInterval(recordInterval);
+      document.getElementById('record-timer').classList.remove('active');
+      document.getElementById('btn-record-start').disabled = false;
+      document.getElementById('btn-record-stop').disabled = true;
+    }
+
+    async function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      recordedBlob = file;
+      const audioUrl = URL.createObjectURL(file);
+      document.getElementById('audio-player').src = audioUrl;
+      document.getElementById('audio-cache-box').classList.add('show');
+      await uploadToCache(file, file.name);
+    }
+
+    async function uploadToCache(blob, filename) {
+      const formData = new FormData();
+      formData.append('audio_file', blob, filename);
+
+      try {
+        const res = await fetch('/api/ai/speaking/cache', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.cache_id) {
+          currentCacheId = data.cache_id;
+          document.getElementById('cache-status').innerText = `Cached: ${data.cache_id.slice(0, 16)}... (${(data.size_bytes / 1024).toFixed(1)} KB)`;
+        }
+      } catch (err) {
+        console.error("Cache upload failed:", err);
+      }
+    }
+
+    function clearRecordingCache() {
+      recordedBlob = null;
+      currentCacheId = null;
+      liveTranscriptText = "";
+      document.getElementById('audio-player').src = "";
+      document.getElementById('audio-cache-box').classList.remove('show');
+      document.getElementById('spk-audio-file').value = "";
+      const spkTx = document.getElementById('spk-transcript');
+      if (spkTx) spkTx.value = "";
+    }
+
+    async function submitSpeakingEvaluation() {
+      if (!currentCacheId && !recordedBlob) {
+        alert("Please record or upload an audio response first!");
+        return;
+      }
+
+      document.getElementById('spk-loading').classList.add('show');
+      document.getElementById('spk-results').style.display = 'none';
+
+      const formData = new FormData();
+      if (currentCacheId) {
+        formData.append('cache_id', currentCacheId);
+      }
+      if (recordedBlob) {
+        formData.append('audio_file', recordedBlob, 'answer.webm');
+      }
+
+      formData.append('exam_type', document.getElementById('spk-exam-type').value);
+      formData.append('part', document.getElementById('spk-part').value);
+      formData.append('prompt', document.getElementById('spk-prompt').value);
+
+      const spkTranscriptEl = document.getElementById('spk-transcript');
+      if (spkTranscriptEl && spkTranscriptEl.value && spkTranscriptEl.value.trim().length > 0) {
+        formData.append('client_transcript', spkTranscriptEl.value.trim());
+      }
+
+      try {
+        const res = await fetch('/api/ai/speaking/evaluate', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        renderSpeakingResults(data);
+      } catch (err) {
+        alert("Evaluation failed: " + err.message);
+      } finally {
+        document.getElementById('spk-loading').classList.remove('show');
+      }
+    }
+
+    function renderSpeakingResults(data) {
+      const phoneme = data.phoneme_analysis || {};
+      const asr = data.asr_metadata || {};
+      const transcript = asr.transcript || data.transcript || "";
+      const isUnclear = (transcript === "không rõ âm thanh hoặc độ dài chưa đủ") || data.overall_band === 0.0 || asr.is_unclear;
+
+      const unclearBanner = document.getElementById('spk-unclear-banner');
+      const wordErrorsCard = document.getElementById('spk-word-errors-card');
+
+      if (isUnclear) {
+        unclearBanner.style.display = 'block';
+        document.getElementById('res-overall-band').innerText = "0.0";
+        document.getElementById('res-overall-cefr').innerText = "N/A";
+        document.getElementById('res-fc-score').innerText = "0.0";
+        document.getElementById('res-lr-score').innerText = "0.0";
+        document.getElementById('res-gra-score').innerText = "0.0";
+        document.getElementById('res-pr-score').innerText = "0.0";
+
+        document.getElementById('res-acoustic-score').innerText = "0";
+        document.getElementById('res-per-rate').innerText = "0%";
+        document.getElementById('res-phoneme-chips').innerHTML = '<span style="font-size: 0.8rem; color: #fbbf24;">⚠️ Không nhận diện được âm thanh rõ ràng hoặc bản ghi quá ngắn (&lt; 1s).</span>';
+        document.getElementById('res-phoneme-diagnostics').innerHTML = '<p style="color: #fbbf24;">Vui lòng ghi âm lại rõ ràng hơn, thời lượng tối thiểu 5-10 giây.</p>';
+
+        document.getElementById('res-word-count').innerText = "0";
+        document.getElementById('res-wpm').innerText = "0 WPM";
+        document.getElementById('res-transcript').innerHTML = '<span style="color: #f87171; font-weight: 700;">không rõ âm thanh hoặc độ dài chưa đủ</span>';
+
+        wordErrorsCard.style.display = 'none';
+        document.getElementById('res-inline-feedback').innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem;">Không có đủ dữ liệu âm thanh hợp lệ để phân tích sửa lỗi.</div>';
+        document.getElementById('res-model-answer').innerText = data.model_answer || "Vui lòng thu âm lại rõ ràng hơn.";
+        document.getElementById('spk-results').style.display = 'block';
+        return;
+      }
+
+      // Valid Speech Detected
+      unclearBanner.style.display = 'none';
+      wordErrorsCard.style.display = 'block';
+
+      if (transcript && transcript !== "không rõ âm thanh hoặc độ dài chưa đủ") {
+        const spkTx = document.getElementById('spk-transcript');
+        if (spkTx && (!spkTx.value || spkTx.value.trim().length === 0)) {
+          spkTx.value = transcript;
+        }
+      }
+
+      document.getElementById('res-overall-band').innerText = data.overall_band || 6.5;
+      document.getElementById('res-overall-cefr').innerText = "CEFR " + (data.overall_cefr || "B2");
+      document.getElementById('res-fc-score').innerText = data.fluency_score || 6.5;
+      document.getElementById('res-lr-score').innerText = data.lexical_score || 6.5;
+      document.getElementById('res-gra-score').innerText = data.grammar_score || 6.0;
+      document.getElementById('res-pr-score').innerText = data.pronunciation_score || 7.0;
+
+      // Acoustic Phoneme Results
+      document.getElementById('res-acoustic-score').innerText = phoneme.acoustic_pronunciation_score || 75;
+      document.getElementById('res-per-rate').innerText = (phoneme.phoneme_error_rate_pct || 8.0) + "%";
+
+      const chipsContainer = document.getElementById('res-phoneme-chips');
+      chipsContainer.innerHTML = "";
+      const errList = phoneme.error_phonemes || [];
+      if (errList.length === 0) {
+        chipsContainer.innerHTML = '<span style="font-size: 0.8rem; color: #34d399;">✓ Phát âm chuẩn xác! Không phát hiện lỗi âm học nghiêm trọng.</span>';
+      } else {
+        errList.forEach(e => {
+          const chip = document.createElement('span');
+          chip.className = 'phoneme-chip';
+          chip.innerHTML = `<span class="ipa">${e}</span>`;
+          chipsContainer.appendChild(chip);
+        });
+      }
+
+      const diagContainer = document.getElementById('res-phoneme-diagnostics');
+      diagContainer.innerHTML = "";
+      (phoneme.detailed_errors || []).forEach(d => {
+        const p = document.createElement('p');
+        p.style.marginBottom = "4px";
+        p.innerHTML = `• <b style="color: #f87171;">${d.target_sound || d.error_token}</b>: ${d.diagnostic || 'Lỗi phát âm âm học.'}`;
+        diagContainer.appendChild(p);
+      });
+
+      // ASR Transcription with Word Highlighting
+      const wordList = transcript.split(/\s+/);
+      const detailedErrors = phoneme.detailed_errors || phoneme.word_level_errors || [];
+      const errorIndices = new Map();
+      detailedErrors.forEach(err => {
+        if (err.word_index) errorIndices.set(err.word_index, err);
+      });
+
+      // Highlight mispronounced words directly inside the candidate's transcript
+      let highlightedHtml = [];
+      wordList.forEach((word, idx) => {
+        const wordPos = idx + 1;
+        if (errorIndices.has(wordPos)) {
+          const err = errorIndices.get(wordPos);
+          highlightedHtml.push(
+            `<span style="background: rgba(239, 68, 68, 0.25); color: #fca5a5; font-weight: 700; border-bottom: 2px solid #ef4444; padding: 2px 5px; border-radius: 4px; cursor: help;" title="Từ thứ ${wordPos}: Lỗi âm ${err.target_sound} (${err.error_token})">${word}</span>`
+          );
+        } else {
+          highlightedHtml.push(word);
+        }
+      });
+
+      document.getElementById('res-word-count').innerText = asr.word_count || wordList.length;
+      document.getElementById('res-wpm').innerText = (asr.speaking_rate_wpm || 125) + " WPM";
+      document.getElementById('res-transcript').innerHTML = `"${highlightedHtml.join(' ')}"`;
+
+      // Word-Level Pronunciation Errors Card
+      const wordErrorList = document.getElementById('res-word-error-list');
+      wordErrorList.innerHTML = "";
+      document.getElementById('res-error-count-badge').innerText = `${detailedErrors.length} vị trí phát âm sai`;
+
+      if (detailedErrors.length === 0) {
+        wordErrorList.innerHTML = '<div style="color: #34d399; font-size: 0.9rem; padding: 8px;">✓ Tuyệt vời! Toàn bộ các từ trong đoạn nói đều được phát âm rõ ràng, không có âm nào bị lỗi nghiêm trọng.</div>';
+      } else {
+        detailedErrors.forEach(err => {
+          const item = document.createElement('div');
+          item.style.background = "#1e293b";
+          item.style.border = "1px solid rgba(239, 68, 68, 0.3)";
+          item.style.borderLeft = "4px solid #ef4444";
+          item.style.borderRadius = "8px";
+          item.style.padding = "12px 16px";
+          item.style.marginBottom = "10px";
+
+          item.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 0.95rem; font-weight: 700; color: #fca5a5;">
+                📍 Vị trí: <span style="color: white; background: #334155; padding: 2px 8px; border-radius: 4px;">Từ thứ ${err.word_index || '?'}: "${err.word || ''}"</span>
+              </span>
+              <span style="font-size: 0.8rem; font-weight: 700; color: #ef4444; background: rgba(239, 68, 68, 0.15); padding: 3px 8px; border-radius: 6px;">
+                Âm sai: ${err.target_sound || ''} (${err.error_token || ''})
+              </span>
+            </div>
+            <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 4px;">
+              <b style="color: #cbd5e1;">Ngữ cảnh trong lời nói:</b> <span style="font-style: italic; color: #f1f5f9;">${err.sentence_context || `"... ${err.word} ..."`}</span>
+            </div>
+            <div style="font-size: 0.85rem; color: #e2e8f0;">
+              <b style="color: #60a5fa;">Hướng dẫn sửa phát âm:</b> ${err.diagnostic || 'Luyện tập phát âm chuẩn âm học.'}
+            </div>
+            ${err.example_words ? `<div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">(Từ mẫu phát âm chuẩn âm này: <i>${err.example_words}</i>)</div>` : ''}
+          `;
+          wordErrorList.appendChild(item);
+        });
+      }
+
+      // Inline Linguistic Corrections
+      const feedbackContainer = document.getElementById('res-inline-feedback');
+      feedbackContainer.innerHTML = "";
+      (data.inline_feedback || []).forEach(fb => {
+        const div = document.createElement('div');
+        div.className = 'feedback-item';
+        div.innerHTML = `
+          <div class="feedback-category">${fb.category || 'Language Refinement'}</div>
+          <div class="feedback-orig">${fb.original}</div>
+          <div class="feedback-imp">→ ${fb.improved}</div>
+          <div class="feedback-exp">${fb.explanation}</div>
+        `;
+        feedbackContainer.appendChild(div);
+      });
+
+      // Model Answer
+      document.getElementById('res-model-answer').innerText = data.model_answer || "Sample model response.";
+      document.getElementById('spk-results').style.display = 'block';
+    }
+
+    // ==========================================
+    // Writing Assessment & Rewriter
+    // ==========================================
+    function updateWordCounter() {
+      const text = document.getElementById('wri-essay').value.trim();
+      const count = text ? text.split(/\s+/).length : 0;
+      document.getElementById('wri-word-counter').innerText = `Word count: ${count}`;
+    }
+
+    async function submitWritingEvaluation() {
+      const essay = document.getElementById('wri-essay').value.trim();
+      if (!essay) { alert("Please enter your essay first!"); return; }
+
+      document.getElementById('wri-loading').classList.add('show');
+      document.getElementById('wri-results').style.display = 'none';
+
+      try {
+        const res = await fetch('/api/ai/writing/evaluate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            exam_type: document.getElementById('wri-exam-type').value,
+            prompt: document.getElementById('wri-prompt').value,
+            essay_text: essay
+          })
+        });
+        const data = await res.json();
+        renderWritingResults(data);
+      } catch (err) {
+        alert("Writing evaluation failed: " + err.message);
+      } finally {
+        document.getElementById('wri-loading').classList.remove('show');
+      }
+    }
+
+    async function improveEssayText() {
+      const essay = document.getElementById('wri-essay').value.trim();
+      if (!essay) return;
+      document.getElementById('wri-loading').classList.add('show');
+
+      try {
+        const res = await fetch('/api/ai/writing/improve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: essay })
+        });
+        const data = await res.json();
+        if (data.improved_text) {
+          alert("✨ C1/C2 Academic Rewrite Ready! Check model answer section.");
+          document.getElementById('wri-res-model').innerText = data.improved_text;
+          document.getElementById('wri-results').style.display = 'block';
+        }
+      } catch (err) {
+        alert("Improvement failed: " + err.message);
+      } finally {
+        document.getElementById('wri-loading').classList.remove('show');
+      }
+    }
+
+    function renderWritingResults(data) {
+      document.getElementById('wri-res-overall').innerText = data.overall_band || 7.0;
+      document.getElementById('wri-res-cefr').innerText = "CEFR " + (data.overall_cefr || "C1");
+      document.getElementById('wri-res-tr').innerText = data.task_response_score || 7.0;
+      document.getElementById('wri-res-cc').innerText = data.coherence_score || 7.0;
+      document.getElementById('wri-res-lr').innerText = data.lexical_score || 6.5;
+      document.getElementById('wri-res-gra').innerText = data.grammar_score || 7.0;
+
+      const fbBox = document.getElementById('wri-res-feedback');
+      fbBox.innerHTML = "";
+      (data.inline_feedback || []).forEach(f => {
+        const item = document.createElement('div');
+        item.className = 'feedback-item';
+        item.innerHTML = `
+          <div class="feedback-category">${f.category || 'Academic Style'}</div>
+          <div class="feedback-orig">${f.original}</div>
+          <div class="feedback-imp">→ ${f.improved}</div>
+          <div class="feedback-exp">${f.explanation}</div>
+        `;
+        fbBox.appendChild(item);
+      });
+
+      document.getElementById('wri-res-model').innerText = data.model_answer || "";
+      document.getElementById('wri-results').style.display = 'block';
+    }
+
+    // ==========================================
+    // AI Tutor Multi-Turn Chatbot
+    // ==========================================
+    let chatHistory = [];
+
+    function resetChat() {
+      chatHistory = [];
+      const persona = document.getElementById('chat-persona').value;
+      const box = document.getElementById('chat-thread');
+      box.innerHTML = '';
+
+      let welcome = "Hello! I am your AI Examiner. Please introduce yourself and let's begin our speaking practice.";
+      if (persona === 'CONVERSATION_PARTNER') welcome = "Hey there! Alex here. What fun topic would you like to chat about today?";
+      if (persona === 'GRAMMAR_COACH') welcome = "Welcome! I'm your Grammar Coach. Send any sentence or paragraph and I'll explain how to enhance it.";
+
+      const div = document.createElement('div');
+      div.className = 'chat-msg bot';
+      div.innerHTML = `<div>${welcome}</div><div class="chat-tip">💡 Tip: Speak in complete thoughts to receive detailed coaching.</div>`;
+      box.appendChild(div);
+    }
+
+    async function sendChatMessage() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+
+      const box = document.getElementById('chat-thread');
+      const userDiv = document.createElement('div');
+      userDiv.className = 'chat-msg user';
+      userDiv.innerText = text;
+      box.appendChild(userDiv);
+      box.scrollTop = box.scrollHeight;
+
+      // Loading bubble
+      const botDiv = document.createElement('div');
+      botDiv.className = 'chat-msg bot';
+      botDiv.innerHTML = '<div class="spinner"></div>';
+      box.appendChild(botDiv);
+      box.scrollTop = box.scrollHeight;
+
+      try {
+        const res = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            persona: document.getElementById('chat-persona').value,
+            message: text,
+            message_history: chatHistory
+          })
+        });
+        const data = await res.json();
+        chatHistory.push({ role: 'user', content: text });
+        chatHistory.push({ role: 'assistant', content: data.reply });
+
+        let tipHtml = "";
+        if (data.corrections && data.corrections.tip) {
+          tipHtml = `<div class="chat-tip">💡 ${data.corrections.type || 'Tip'}: ${data.corrections.tip}</div>`;
+        }
+
+        botDiv.innerHTML = `
+          <div>${data.reply}</div>
+          ${tipHtml}
+          <button style="margin-top:6px; font-size:0.75rem; background:none; border:none; color:#60a5fa; cursor:pointer;" onclick="speakText(this.previousElementSibling ? this.previousElementSibling.previousElementSibling.innerText : '')">
+            🔊 Speak message
+          </button>
+        `;
+      } catch (err) {
+        botDiv.innerText = "Error contacting tutor: " + err.message;
+      }
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // ==========================================
+    // Mozilla Web Speech API & Edge-TTS
+    // ==========================================
+    function initBrowserVoices() {
+      if ('speechSynthesis' in window) {
+        const voiceSelect = document.getElementById('tts-browser-voice');
+        function populate() {
+          const voices = window.speechSynthesis.getVoices();
+          voiceSelect.innerHTML = "";
+          voices.filter(v => v.lang.startsWith('en')).forEach((v, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx;
+            opt.innerText = `${v.name} (${v.lang})`;
+            if (v.name.includes("Natural") || v.name.includes("UK") || v.name.includes("Google")) {
+              opt.selected = true;
+            }
+            voiceSelect.appendChild(opt);
+          });
+        }
+        populate();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+          speechSynthesis.onvoiceschanged = populate;
+        }
+      }
+    }
+    initBrowserVoices();
+
+    function speakBrowserTTS() {
+      const text = document.getElementById('tts-input').value;
+      speakText(text);
+    }
+
+    function speakText(text) {
+      if (!('speechSynthesis' in window)) {
+        alert("Mozilla Web Speech API is not supported in this browser.");
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+      const selIdx = document.getElementById('tts-browser-voice').value;
+      if (voices[selIdx]) utterance.voice = voices[selIdx];
+
+      utterance.rate = parseFloat(document.getElementById('tts-rate').value);
+      utterance.pitch = parseFloat(document.getElementById('tts-pitch').value);
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function stopBrowserTTS() {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    async function synthesizeBackendTTS() {
+      const text = document.getElementById('tts-input').value;
+      try {
+        const res = await fetch('/api/ai/tts/synthesize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: text,
+            voice_profile: 'ielts_examiner_british_female'
+          })
+        });
+        const data = await res.json();
+        if (data.audio_url) {
+          const player = document.getElementById('tts-server-player');
+          player.src = data.audio_url;
+          document.getElementById('tts-server-audio-box').style.display = 'block';
+          player.play();
+        }
+      } catch (err) {
+        alert("Server synthesis failed: " + err.message);
+      }
+    }
+
+    // Initialize word counter on page load
+    updateWordCounter();
+  </script>
+</body>
+</html>
