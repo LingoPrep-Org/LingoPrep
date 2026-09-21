@@ -24,6 +24,12 @@ class SubmissionStatus(str, enum.Enum):
     REVIEW_REQUESTED = "REVIEW_REQUESTED"
     REVIEWED = "REVIEWED"
 
+class AssessmentJobStatus(str, enum.Enum):
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+
 class User(Base):
     __tablename__ = "users"
 
@@ -169,3 +175,55 @@ class Notification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="notifications")
+
+class Rubric(Base):
+    __tablename__ = "rubrics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    exam_type = Column(Enum(ExamType), nullable=False, index=True)
+    skill = Column(Enum(SkillType), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    version = Column(String(50), default="1.0")
+    criteria = Column(JSON, nullable=False)
+    cefr_mapping = Column(JSON, nullable=True)
+    is_active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class AIProfile(Base):
+    __tablename__ = "ai_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    provider = Column(String(100), default="local", index=True)
+    model_name = Column(String(255), nullable=False)
+    purpose = Column(String(100), nullable=False)
+    config = Column(JSON, default=dict)
+    is_active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class AssessmentJob(Base):
+    __tablename__ = "assessment_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    submission_id = Column(Integer, ForeignKey("submissions.id"), nullable=False, index=True)
+    job_type = Column(String(50), nullable=False)  # WRITING_ASSESSMENT, SPEAKING_ASSESSMENT, STT
+    status = Column(Enum(AssessmentJobStatus), default=AssessmentJobStatus.QUEUED, index=True)
+    provider = Column(String(100), default="local")
+    attempts = Column(Integer, default=0)
+    error_message = Column(Text, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    actor_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    action = Column(String(100), nullable=False, index=True)
+    entity_type = Column(String(100), nullable=False)
+    entity_id = Column(String(100), nullable=True)
+    metadata_json = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)

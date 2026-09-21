@@ -7,7 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, s
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import (
-    Submission, SubmissionStatus, Question, Assessment, User, SkillType, Notification
+    Submission, SubmissionStatus, Question, Assessment, User, SkillType, Notification,
+    AssessmentJob, AssessmentJobStatus, AuditLog, UserRole
 )
 from app.schemas import (
     SubmissionResponse, SubmissionCreateWriting
@@ -17,6 +18,7 @@ from app.config import settings
 from app.ai.writing_evaluator import WritingEvaluator
 from app.ai.speaking_evaluator import SpeakingEvaluator
 from app.ai.stt_service import STTService
+from app.services.storage import upload_file_to_object_storage
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/submissions", tags=["Submissions & Assessments"])
@@ -47,6 +49,17 @@ async def submit_writing(
     db.commit()
     db.refresh(sub)
 
+    job = AssessmentJob(
+        submission_id=sub.id,
+        job_type="WRITING_ASSESSMENT",
+        status=AssessmentJobStatus.RUNNING,
+        provider=settings.AI_PROVIDER,
+        attempts=1,
+        started_at=datetime.utcnow()
+    )
+    db.add(job)
+    db.commit()
+
     # 2. Trigger AI Writing Evaluation
     try:
         eval_result = await WritingEvaluator.evaluate(
@@ -75,6 +88,8 @@ async def submit_writing(
         )
         db.add(assessment)
         sub.status = SubmissionStatus.EVALUATED
+        job.status = AssessmentJobStatus.SUCCEEDED
+        job.finished_at = datetime.utcnow()
         
         # 4. Create Notification
         notif = Notification(
@@ -85,12 +100,22 @@ async def submit_writing(
             link=f"/assessment/{sub.id}"
         )
         db.add(notif)
+        db.add(AuditLog(
+            actor_user_id=current_user.id,
+            action="WRITING_SUBMITTED",
+            entity_type="Submission",
+            entity_id=str(sub.id),
+            metadata_json={"question_id": question.id, "word_count": word_count}
+        ))
         db.commit()
         db.refresh(sub)
 
     except Exception as e:
         logger.error(f"Error during AI Writing Evaluation: {e}")
         sub.status = SubmissionStatus.PENDING
+        job.status = AssessmentJobStatus.FAILED
+        job.error_message = str(e)
+        job.finished_at = datetime.utcnow()
         db.commit()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -114,6 +139,7 @@ async def submit_speaking(
 
     # Save audio file if uploaded
     saved_audio_path = None
+    object_audio_url = None
     if audio_file:
         file_ext = os.path.splitext(audio_file.filename)[1] or ".webm"
         file_name = f"audio_{uuid.uuid4().hex}{file_ext}"
@@ -121,6 +147,11 @@ async def submit_speaking(
         with open(saved_audio_path, "wb") as f:
             content = await audio_file.read()
             f.write(content)
+        object_audio_url = upload_file_to_object_storage(
+            saved_audio_path,
+            f"speaking/{file_name}",
+            content_type=audio_file.content_type
+        )
 
     # 1. Speech-To-Text processing
     stt_result = await STTService.transcribe_audio(
@@ -137,7 +168,7 @@ async def submit_speaking(
         question_id=question.id,
         submission_type=SkillType.SPEAKING,
         content_text=final_transcript,
-        audio_path=f"/uploads/{os.path.basename(saved_audio_path)}" if saved_audio_path else None,
+        audio_path=object_audio_url or (f"/uploads/{os.path.basename(saved_audio_path)}" if saved_audio_path else None),
         duration_seconds=duration_seconds,
         word_count=word_count,
         status=SubmissionStatus.PROCESSING
@@ -145,6 +176,17 @@ async def submit_speaking(
     db.add(sub)
     db.commit()
     db.refresh(sub)
+
+    job = AssessmentJob(
+        submission_id=sub.id,
+        job_type="SPEAKING_ASSESSMENT",
+        status=AssessmentJobStatus.RUNNING,
+        provider=settings.AI_PROVIDER,
+        attempts=1,
+        started_at=datetime.utcnow()
+    )
+    db.add(job)
+    db.commit()
 
     # 3. AI Speaking Evaluation
     try:
@@ -183,6 +225,8 @@ async def submit_speaking(
         )
         db.add(assessment)
         sub.status = SubmissionStatus.EVALUATED
+        job.status = AssessmentJobStatus.SUCCEEDED
+        job.finished_at = datetime.utcnow()
 
         notif = Notification(
             user_id=current_user.id,
@@ -192,12 +236,22 @@ async def submit_speaking(
             link=f"/assessment/{sub.id}"
         )
         db.add(notif)
+        db.add(AuditLog(
+            actor_user_id=current_user.id,
+            action="SPEAKING_SUBMITTED",
+            entity_type="Submission",
+            entity_id=str(sub.id),
+            metadata_json={"question_id": question.id, "duration_seconds": duration_seconds, "word_count": word_count}
+        ))
         db.commit()
         db.refresh(sub)
 
     except Exception as e:
         logger.error(f"Error during AI Speaking Evaluation: {e}")
         sub.status = SubmissionStatus.PENDING
+        job.status = AssessmentJobStatus.FAILED
+        job.error_message = str(e)
+        job.finished_at = datetime.utcnow()
         db.commit()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -224,6 +278,8 @@ def get_submission(
     sub = db.query(Submission).filter(Submission.id == submission_id).first()
     if not sub:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
+    if current_user.role not in [UserRole.ADMIN, UserRole.TEACHER] and sub.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     return sub
 
 @router.post("/{submission_id}/request-review")
@@ -240,5 +296,12 @@ def request_teacher_review(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
     
     sub.status = SubmissionStatus.REVIEW_REQUESTED
+    db.add(AuditLog(
+        actor_user_id=current_user.id,
+        action="TEACHER_REVIEW_REQUESTED",
+        entity_type="Submission",
+        entity_id=str(sub.id),
+        metadata_json={"question_id": sub.question_id}
+    ))
     db.commit()
     return {"message": "Teacher review requested successfully", "status": sub.status.value}

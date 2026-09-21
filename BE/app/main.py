@@ -17,18 +17,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger("lingoprep")
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: Initialize Database Tables & Seed
+def initialize_database():
     logger.info("Initializing database tables...")
     Base.metadata.create_all(bind=engine)
-    
     db = SessionLocal()
     try:
         seed_database(db)
     finally:
         db.close()
-    
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize Database Tables & Seed
+    initialize_database()
+
     yield
     # Shutdown
     logger.info("Shutting down LingoPrep Backend...")
@@ -37,13 +39,22 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
     description="Intelligent IELTS & Aptis Speaking & Writing Practice & Assessment Platform powered by AI",
+    openapi_tags=[
+        {"name": "Authentication", "description": "JWT authentication, registration, profile, and RBAC identity."},
+        {"name": "Question Bank", "description": "IELTS/Aptis Speaking and Writing prompt bank with filters and admin CRUD."},
+        {"name": "Submissions & Assessments", "description": "Learner writing/speaking submissions, AI feedback, jobs, and review requests."},
+        {"name": "Teacher Review Module", "description": "Teacher queue, override scoring, feedback notes, and learner notifications."},
+        {"name": "Dashboard & Analytics", "description": "Learner progress, trend history, recommendations, and notifications."},
+        {"name": "Administration & Monitoring", "description": "Users, roles, rubrics, AI profiles, jobs, audit logs, and system stats."},
+        {"name": "AI Studio", "description": "Standalone AI/STT/TTS test and debug endpoints."},
+    ],
     lifespan=lifespan
 )
 
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Allow development frontend
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,6 +73,9 @@ app.include_router(dashboard.router)
 app.include_router(chat.router)
 app.include_router(admin.router)
 app.include_router(ai_test.router)
+
+# Keep TestClient/import-mode usage safe even when lifespan is not entered.
+initialize_database()
 
 @app.get("/")
 def root():

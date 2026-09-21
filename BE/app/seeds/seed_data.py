@@ -3,13 +3,16 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.models import (
     User, UserRole, Question, ExamType, SkillType,
-    Submission, SubmissionStatus, Assessment, TeacherReview, Notification
+    Submission, SubmissionStatus, Assessment, TeacherReview, Notification,
+    Rubric, AIProfile, AuditLog
 )
 from app.core.security import get_password_hash
 
 logger = logging.getLogger(__name__)
 
 def seed_database(db: Session):
+    seed_reference_metadata(db)
+
     # Check if database is already seeded
     if db.query(User).first():
         logger.info("Database already seeded. Skipping initial seeding.")
@@ -430,3 +433,64 @@ def seed_database(db: Session):
     db.commit()
 
     logger.info("Database seeding completed successfully!")
+
+def seed_reference_metadata(db: Session):
+    """Idempotently seed rubrics, AI profiles, and baseline audit metadata."""
+    if db.query(Rubric).count() == 0:
+        db.add_all([
+            Rubric(
+                exam_type=ExamType.IELTS,
+                skill=SkillType.WRITING,
+                name="IELTS Writing MVP Rubric",
+                version="1.0",
+                criteria={
+                    "task_response": {"weight": 0.25, "scale": "0-9", "description": "Addresses task, position, ideas, development."},
+                    "coherence": {"weight": 0.25, "scale": "0-9", "description": "Organisation, cohesion, paragraphing."},
+                    "lexical": {"weight": 0.25, "scale": "0-9", "description": "Vocabulary range, collocation, spelling."},
+                    "grammar": {"weight": 0.25, "scale": "0-9", "description": "Accuracy and range of structures."}
+                },
+                cefr_mapping={"4.0": "B1", "5.5": "B2", "7.0": "C1", "8.5": "C2"}
+            ),
+            Rubric(
+                exam_type=ExamType.IELTS,
+                skill=SkillType.SPEAKING,
+                name="IELTS Speaking MVP Rubric",
+                version="1.0",
+                criteria={
+                    "fluency": {"weight": 0.25, "scale": "0-9", "description": "Flow, hesitation, pacing."},
+                    "lexical": {"weight": 0.25, "scale": "0-9", "description": "Range and appropriacy of vocabulary."},
+                    "grammar": {"weight": 0.25, "scale": "0-9", "description": "Accuracy and sentence variety."},
+                    "pronunciation": {"weight": 0.25, "scale": "0-9", "description": "Intelligibility, stress, phoneme-level signals."}
+                },
+                cefr_mapping={"4.0": "B1", "5.5": "B2", "7.0": "C1", "8.5": "C2"}
+            )
+        ])
+
+    if db.query(AIProfile).count() == 0:
+        db.add_all([
+            AIProfile(
+                name="Local Offline Assessment",
+                provider="local",
+                model_name="heuristic-offline-fallback",
+                purpose="assessment",
+                config={"structured_output": True, "teacher_review_required_on_low_confidence": True}
+            ),
+            AIProfile(
+                name="Ollama Qwen Speaking/Writing",
+                provider="ollama",
+                model_name="qwen3:4b-instruct",
+                purpose="feedback",
+                config={"temperature": 0.2, "json_validation": True}
+            )
+        ])
+
+    if db.query(AuditLog).count() == 0:
+        db.add(AuditLog(
+            actor_user_id=None,
+            action="SYSTEM_BOOTSTRAPPED",
+            entity_type="System",
+            entity_id="lingoprep-mvp",
+            metadata_json={"source": "seed_reference_metadata", "scope": "rubrics, ai_profiles"}
+        ))
+
+    db.commit()

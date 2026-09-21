@@ -3,9 +3,17 @@ import re
 import logging
 from typing import Dict, Any, List, Optional
 import numpy as np
-import torch
 import soundfile as sf
-import librosa
+
+try:
+    import torch
+except Exception:  # optional heavy dependency for neural phoneme inference
+    torch = None
+
+try:
+    import librosa
+except Exception:  # optional heavy dependency; soundfile fallback is enough for tests/local MVP
+    librosa = None
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +84,7 @@ class PhonemeEvaluator:
                 cls._processor = AutoProcessor.from_pretrained(cls._model_id, local_files_only=True)
                 cls._model = AutoModelForCTC.from_pretrained(cls._model_id, local_files_only=True)
                 cls._model.eval()
-                if torch.cuda.is_available():
+                if torch is not None and torch.cuda.is_available():
                     cls._model = cls._model.to("cuda")
                 else:
                     cls._model = cls._model.to("cpu")
@@ -92,14 +100,19 @@ class PhonemeEvaluator:
         """Loads audio from file path or bytes, converts to mono 16kHz float32."""
         try:
             if isinstance(audio_input, str) and os.path.exists(audio_input):
-                y, sr = librosa.load(audio_input, sr=target_sr, mono=True)
-                return y.astype(np.float32)
+                if librosa is not None:
+                    y, sr = librosa.load(audio_input, sr=target_sr, mono=True)
+                    return y.astype(np.float32)
+                data, sr = sf.read(audio_input)
+                if data.ndim > 1:
+                    data = np.mean(data, axis=1)
+                return data.astype(np.float32)
             elif isinstance(audio_input, bytes):
                 import io
                 data, sr = sf.read(io.BytesIO(audio_input))
                 if data.ndim > 1:
                     data = np.mean(data, axis=1)
-                if sr != target_sr:
+                if sr != target_sr and librosa is not None:
                     data = librosa.resample(data, orig_sr=sr, target_sr=target_sr)
                 return data.astype(np.float32)
         except Exception as e:
@@ -109,7 +122,7 @@ class PhonemeEvaluator:
                     data, sr = sf.read(audio_input)
                     if data.ndim > 1:
                         data = np.mean(data, axis=1)
-                    if sr != target_sr:
+                    if sr != target_sr and librosa is not None:
                         data = librosa.resample(data, orig_sr=sr, target_sr=target_sr)
                     return data.astype(np.float32)
             except Exception as e2:
@@ -132,7 +145,11 @@ class PhonemeEvaluator:
             duration = round(len(audio_data) / 16000.0, 2)
         elif os.path.exists(audio_path):
             try:
-                duration = round(float(librosa.get_duration(path=audio_path)), 2)
+                if librosa is not None:
+                    duration = round(float(librosa.get_duration(path=audio_path)), 2)
+                else:
+                    data, sr = sf.read(audio_path)
+                    duration = round(len(data) / float(sr), 2) if sr else 0.0
             except Exception:
                 duration = 0.0
 
@@ -162,6 +179,8 @@ class PhonemeEvaluator:
                 inputs = processor(audio_data, sampling_rate=16000, return_tensors="pt")
                 input_values = inputs.input_values.to(device)
 
+                if torch is None:
+                    raise RuntimeError("torch is not installed")
                 with torch.no_grad():
                     logits = model(input_values).logits
 
@@ -326,8 +345,12 @@ class PhonemeEvaluator:
         """Extracts acoustic tokens from speech waveform when neural model is downloading."""
         tokens = ["w", "eh", "l", "ih", "n", "m", "ay", "p", "er", "s", "p", "eh", "k", "t", "ih", "v"]
         try:
-            zcr = float(np.mean(librosa.feature.zero_crossing_rate(audio_data)))
-            spec_cent = float(np.mean(librosa.feature.spectral_centroid(y=audio_data, sr=16000)))
+            if librosa is not None:
+                zcr = float(np.mean(librosa.feature.zero_crossing_rate(audio_data)))
+                spec_cent = float(np.mean(librosa.feature.spectral_centroid(y=audio_data, sr=16000)))
+            else:
+                zcr = float(np.mean(np.abs(np.diff(np.signbit(audio_data).astype(int)))))
+                spec_cent = 2500.0 if zcr > 0.08 else 1500.0
 
             # If consonant articulation is slightly low, flag dental or affricate error
             if zcr < 0.08:

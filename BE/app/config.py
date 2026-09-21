@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     AI_PROVIDER: str = "local"
     UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+    REDIS_URL: str = "redis://localhost:6379/0"
+    OBJECT_STORAGE_ENDPOINT: str = "localhost:9000"
+    OBJECT_STORAGE_ACCESS_KEY: str = "minioadmin"
+    OBJECT_STORAGE_SECRET_KEY: str = "minioadmin"
+    OBJECT_STORAGE_BUCKET: str = "lingoprep-uploads"
+    OBJECT_STORAGE_SECURE: bool = False
 
     class Config:
         env_file = ".env"

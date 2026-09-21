@@ -2,9 +2,17 @@ import os
 import time
 import logging
 from typing import Dict, Any, Optional
-import torch
-import librosa
 from app.config import settings
+
+try:
+    import torch
+except Exception:  # optional heavy dependency for local ASR
+    torch = None
+
+try:
+    import librosa
+except Exception:  # optional heavy dependency; soundfile fallback can read duration
+    librosa = None
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +36,8 @@ class ASRService:
             cls._load_attempted = True
             try:
                 from qwen_asr import Qwen3ASRModel
+                if torch is None:
+                    raise RuntimeError("torch is not installed")
                 device = "cuda:0" if torch.cuda.is_available() else "cpu"
                 dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
 
@@ -64,7 +74,12 @@ class ASRService:
 
         if os.path.exists(audio_path):
             try:
-                duration_seconds = round(float(librosa.get_duration(path=audio_path)), 2)
+                if librosa is not None:
+                    duration_seconds = round(float(librosa.get_duration(path=audio_path)), 2)
+                else:
+                    import soundfile as sf
+                    data, sr = sf.read(audio_path)
+                    duration_seconds = round(len(data) / float(sr), 2) if sr else 0.0
             except Exception:
                 duration_seconds = 0.0
 

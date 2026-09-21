@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from app.models import UserRole, ExamType, SkillType, SubmissionStatus
+from app.models import UserRole, ExamType, SkillType, SubmissionStatus, AssessmentJobStatus
 
 # Token Schemas
 class Token(BaseModel):
@@ -221,6 +221,92 @@ class NotificationResponse(BaseModel):
     type: str
     link: Optional[str] = None
     is_read: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class RubricResponse(BaseModel):
+    id: int
+    exam_type: ExamType
+    skill: SkillType
+    name: str
+    version: str
+    criteria: Dict[str, Any]
+    cefr_mapping: Optional[Dict[str, Any]] = None
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class AIProfileCreate(BaseModel):
+    name: str
+    provider: str = "local"
+    model_name: str
+    purpose: str
+    config: Dict[str, Any] = {}
+    is_active: bool = True
+
+class AIProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    provider: Optional[str] = None
+    model_name: Optional[str] = None
+    purpose: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+    is_active: Optional[bool] = None
+
+class RubricCreate(BaseModel):
+    exam_type: ExamType
+    skill: SkillType
+    name: str
+    version: str = "1.0"
+    criteria: Dict[str, Any]
+    cefr_mapping: Optional[Dict[str, Any]] = None
+    is_active: bool = True
+
+class RubricUpdate(BaseModel):
+    name: Optional[str] = None
+    version: Optional[str] = None
+    criteria: Optional[Dict[str, Any]] = None
+    cefr_mapping: Optional[Dict[str, Any]] = None
+    is_active: Optional[bool] = None
+
+class AIProfileResponse(BaseModel):
+    id: int
+    name: str
+    provider: str
+    model_name: str
+    purpose: str
+    config: Dict[str, Any] = {}
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class AssessmentJobResponse(BaseModel):
+    id: int
+    submission_id: int
+    job_type: str
+    status: AssessmentJobStatus
+    provider: str
+    attempts: int
+    error_message: Optional[str] = None
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class AuditLogResponse(BaseModel):
+    id: int
+    actor_user_id: Optional[int] = None
+    action: str
+    entity_type: str
+    entity_id: Optional[str] = None
+    metadata_json: Dict[str, Any] = {}
     created_at: datetime
 
     class Config:
