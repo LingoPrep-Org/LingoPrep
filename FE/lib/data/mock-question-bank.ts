@@ -1,0 +1,327 @@
+export type QuestionSkill = 'SPEAKING' | 'WRITING';
+export type QuestionTask = 'TASK_1' | 'TASK_2' | 'TASK_3' | 'TASK_4';
+export type QuestionDifficulty = 'EASY' | 'MEDIUM' | 'HARD';
+export type ExamType = 'APTIS_GENERAL' | 'APTIS_ADVANCED';
+export type QuestionStatus = 'ACTIVE' | 'DISABLED';
+
+export interface Question {
+  id: string;
+  content: string;
+  skill: QuestionSkill;
+  task: QuestionTask;
+  topic: string;
+  difficulty: QuestionDifficulty;
+  examType: ExamType;
+  status: QuestionStatus;
+  updatedAt: string;
+}
+
+export const SKILL_LABELS: Record<QuestionSkill, string> = {
+  SPEAKING: 'Speaking',
+  WRITING: 'Writing',
+};
+
+export const TASK_LABELS: Record<QuestionTask, string> = {
+  TASK_1: 'Task 1',
+  TASK_2: 'Task 2',
+  TASK_3: 'Task 3',
+  TASK_4: 'Task 4',
+};
+
+export const DIFFICULTY_LABELS: Record<QuestionDifficulty, string> = {
+  EASY: 'Dễ',
+  MEDIUM: 'Trung bình',
+  HARD: 'Khó',
+};
+
+export const EXAM_TYPE_LABELS: Record<ExamType, string> = {
+  APTIS_GENERAL: 'APTIS General',
+  APTIS_ADVANCED: 'APTIS Advanced',
+};
+
+export const QUESTION_STATUS_LABELS: Record<QuestionStatus, string> = {
+  ACTIVE: 'Đang hoạt động',
+  DISABLED: 'Đã vô hiệu hóa',
+};
+
+export const MOCK_QUESTIONS: Question[] = [
+  {
+    id: 'q001',
+    content: 'Hãy giới thiệu về bản thân bạn, bao gồm tên, tuổi và nơi ở hiện tại.',
+    skill: 'SPEAKING',
+    task: 'TASK_1',
+    topic: 'Giới thiệu bản thân',
+    difficulty: 'EASY',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-09-15',
+  },
+  {
+    id: 'q002',
+    content: 'Miêu tả một người bạn thân của bạn và lý do bạn quý mến người đó.',
+    skill: 'SPEAKING',
+    task: 'TASK_2',
+    topic: 'Mối quan hệ cá nhân',
+    difficulty: 'EASY',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-09-14',
+  },
+  {
+    id: 'q003',
+    content: 'Bạn nghĩ gì về việc làm việc từ xa? Hãy nêu ưu điểm và nhược điểm.',
+    skill: 'SPEAKING',
+    task: 'TASK_3',
+    topic: 'Công việc',
+    difficulty: 'MEDIUM',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-09-12',
+  },
+  {
+    id: 'q004',
+    content: 'Một số người cho rằng mạng xã hội có tác động tiêu cực đến xã hội. Bạn đồng ý hay không đồng ý?',
+    skill: 'SPEAKING',
+    task: 'TASK_4',
+    topic: 'Công nghệ & xã hội',
+    difficulty: 'HARD',
+    examType: 'APTIS_ADVANCED',
+    status: 'ACTIVE',
+    updatedAt: '2026-09-10',
+  },
+  {
+    id: 'q005',
+    content: 'Viết một email cho bạn bè để mời họ tham gia buổi tiệc sinh nhật của bạn.',
+    skill: 'WRITING',
+    task: 'TASK_1',
+    topic: 'Giao tiếp xã hội',
+    difficulty: 'EASY',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-09-11',
+  },
+  {
+    id: 'q006',
+    content: 'Viết một lá thư phàn nàn về dịch vụ kém tại một nhà hàng và yêu cầu đền bù.',
+    skill: 'WRITING',
+    task: 'TASK_2',
+    topic: 'Khiếu nại dịch vụ',
+    difficulty: 'MEDIUM',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-09-09',
+  },
+  {
+    id: 'q007',
+    content: 'Thảo luận về tầm quan trọng của giáo dục môi trường trong trường học.',
+    skill: 'WRITING',
+    task: 'TASK_3',
+    topic: 'Môi trường',
+    difficulty: 'MEDIUM',
+    examType: 'APTIS_ADVANCED',
+    status: 'ACTIVE',
+    updatedAt: '2026-09-08',
+  },
+  {
+    id: 'q008',
+    content: 'Một số người tin rằng thành phố lớn là nơi tốt nhất để sống. Bạn có đồng ý không? Hãy trình bày quan điểm.',
+    skill: 'WRITING',
+    task: 'TASK_4',
+    topic: 'Đời sống',
+    difficulty: 'HARD',
+    examType: 'APTIS_ADVANCED',
+    status: 'ACTIVE',
+    updatedAt: '2026-09-07',
+  },
+  {
+    id: 'q009',
+    content: 'Hãy miêu tả quê hương bạn, bao gồm cảnh quan và con người tại đó.',
+    skill: 'SPEAKING',
+    task: 'TASK_2',
+    topic: 'Quê hương',
+    difficulty: 'EASY',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-09-05',
+  },
+  {
+    id: 'q010',
+    content: 'Bạn sẽ làm gì nếu bạn có một kỳ nghỉ dài? Hãy mô tả kế hoạch của bạn.',
+    skill: 'SPEAKING',
+    task: 'TASK_3',
+    topic: 'Du lịch & giải trí',
+    difficulty: 'MEDIUM',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-09-03',
+  },
+  {
+    id: 'q011',
+    content: 'Viết bài luận về tác động của trí tuệ nhân tạo đối với thị trường lao động.',
+    skill: 'WRITING',
+    task: 'TASK_4',
+    topic: 'Công nghệ',
+    difficulty: 'HARD',
+    examType: 'APTIS_ADVANCED',
+    status: 'DISABLED',
+    updatedAt: '2026-08-28',
+  },
+  {
+    id: 'q012',
+    content: 'Hãy kể về một trải nghiệm khó quên trong cuộc đời bạn.',
+    skill: 'SPEAKING',
+    task: 'TASK_3',
+    topic: 'Kinh nghiệm cá nhân',
+    difficulty: 'MEDIUM',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-08-25',
+  },
+  {
+    id: 'q013',
+    content: 'Viết một bài đăng blog về lợi ích của việc tập thể dục hàng ngày.',
+    skill: 'WRITING',
+    task: 'TASK_3',
+    topic: 'Sức khỏe',
+    difficulty: 'MEDIUM',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-08-22',
+  },
+  {
+    id: 'q014',
+    content: 'Hãy so sánh cuộc sống ở thành phố và nông thôn. Bạn thích sống ở đâu hơn?',
+    skill: 'SPEAKING',
+    task: 'TASK_4',
+    topic: 'Đời sống',
+    difficulty: 'HARD',
+    examType: 'APTIS_ADVANCED',
+    status: 'ACTIVE',
+    updatedAt: '2026-08-20',
+  },
+  {
+    id: 'q015',
+    content: 'Viết email xin nghỉ phép đến quản lý của bạn, nêu rõ lý do và thời gian nghỉ.',
+    skill: 'WRITING',
+    task: 'TASK_1',
+    topic: 'Công việc',
+    difficulty: 'EASY',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-08-18',
+  },
+  {
+    id: 'q016',
+    content: 'Miêu tả một món ăn truyền thống của Việt Nam mà bạn yêu thích.',
+    skill: 'SPEAKING',
+    task: 'TASK_2',
+    topic: 'Ẩm thực',
+    difficulty: 'EASY',
+    examType: 'APTIS_GENERAL',
+    status: 'DISABLED',
+    updatedAt: '2026-08-15',
+  },
+  {
+    id: 'q017',
+    content: 'Thảo luận về vai trò của thanh niên trong việc bảo vệ môi trường.',
+    skill: 'WRITING',
+    task: 'TASK_4',
+    topic: 'Môi trường',
+    difficulty: 'HARD',
+    examType: 'APTIS_ADVANCED',
+    status: 'ACTIVE',
+    updatedAt: '2026-08-12',
+  },
+  {
+    id: 'q018',
+    content: 'Bạn thường làm gì vào cuối tuần? Hãy miêu tả một ngày cuối tuần điển hình.',
+    skill: 'SPEAKING',
+    task: 'TASK_3',
+    topic: 'Lối sống',
+    difficulty: 'EASY',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-08-10',
+  },
+  {
+    id: 'q019',
+    content: 'Viết một bức thư cho ban quản lý tòa nhà về vấn đề an ninh và đề xuất giải pháp.',
+    skill: 'WRITING',
+    task: 'TASK_2',
+    topic: 'An ninh & an toàn',
+    difficulty: 'MEDIUM',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-08-08',
+  },
+  {
+    id: 'q020',
+    content: 'Hãy nêu quan điểm về việc có nên cấm điện thoại trong trường học hay không.',
+    skill: 'SPEAKING',
+    task: 'TASK_4',
+    topic: 'Giáo dục',
+    difficulty: 'HARD',
+    examType: 'APTIS_ADVANCED',
+    status: 'ACTIVE',
+    updatedAt: '2026-08-05',
+  },
+  {
+    id: 'q021',
+    content: 'Viết một đoạn văn ngắn miêu tả bộ phim bạn xem gần đây và lý do bạn thích/không thích.',
+    skill: 'WRITING',
+    task: 'TASK_1',
+    topic: 'Giải trí',
+    difficulty: 'EASY',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-08-02',
+  },
+  {
+    id: 'q022',
+    content: 'Thảo luận về lợi ích và rủi ro của việc mua sắm trực tuyến.',
+    skill: 'WRITING',
+    task: 'TASK_3',
+    topic: 'Kinh tế số',
+    difficulty: 'MEDIUM',
+    examType: 'APTIS_GENERAL',
+    status: 'DISABLED',
+    updatedAt: '2026-07-30',
+  },
+  {
+    id: 'q023',
+    content: 'Bạn nghĩ người trẻ cần có những kỹ năng gì để thành công trong tương lai?',
+    skill: 'SPEAKING',
+    task: 'TASK_4',
+    topic: 'Phát triển cá nhân',
+    difficulty: 'HARD',
+    examType: 'APTIS_ADVANCED',
+    status: 'ACTIVE',
+    updatedAt: '2026-07-28',
+  },
+  {
+    id: 'q024',
+    content: 'Viết một bài luận về tác động của toàn cầu hóa đến văn hóa địa phương.',
+    skill: 'WRITING',
+    task: 'TASK_4',
+    topic: 'Văn hóa & xã hội',
+    difficulty: 'HARD',
+    examType: 'APTIS_ADVANCED',
+    status: 'ACTIVE',
+    updatedAt: '2026-07-25',
+  },
+  {
+    id: 'q025',
+    content: 'Hãy miêu tả một ngày kỷ niệm đặc biệt mà bạn đã trải qua.',
+    skill: 'SPEAKING',
+    task: 'TASK_2',
+    topic: 'Sự kiện cá nhân',
+    difficulty: 'EASY',
+    examType: 'APTIS_GENERAL',
+    status: 'ACTIVE',
+    updatedAt: '2026-07-22',
+  },
+];
+
+export const QUESTION_TOPICS = Array.from(
+  new Set(MOCK_QUESTIONS.map((q) => q.topic))
+).sort();

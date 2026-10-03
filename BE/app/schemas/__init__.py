@@ -6,8 +6,13 @@ from app.models import UserRole, ExamType, SkillType, SubmissionStatus, Assessme
 # Token Schemas
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
     user: "UserResponse"
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(..., min_length=1)
 
 class TokenData(BaseModel):
     email: Optional[str] = None
@@ -36,6 +41,10 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+
+
+class UserStatusUpdate(BaseModel):
+    is_active: bool
 
 # Question Schemas
 class QuestionBase(BaseModel):
@@ -136,6 +145,63 @@ class TeacherReviewResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+class TeacherAssignmentResponse(BaseModel):
+    id: int
+    question_id: int
+    name: str
+    description: str
+    skill: SkillType
+    part: str
+    question_content: str
+    learner_ids: List[int]
+    learner_names: List[str]
+    start_date: datetime
+    due_date: Optional[datetime] = None
+    duration: int
+    status: str
+    total_learners: int
+    submitted_count: int
+
+class TeacherAssignmentCreate(BaseModel):
+    question_id: int
+    name: str
+    description: str = ""
+    learner_ids: List[int]
+    start_date: datetime
+    due_date: Optional[datetime] = None
+    duration: int = 15
+    status: str = "DRAFT"
+
+class TeacherAssignmentUpdate(TeacherAssignmentCreate):
+    pass
+
+
+class TeacherAssignmentSubmissionResponse(BaseModel):
+    id: int
+    learner_id: int
+    learner_name: str
+    status: SubmissionStatus
+    score: Optional[float] = None
+    cefr: Optional[str] = None
+    submitted_at: Optional[datetime] = None
+    skill: SkillType
+
+
+class TeacherStudentProgressResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    joined_at: datetime
+    total_submissions: int
+    speaking_count: int
+    writing_count: int
+    speaking_score: float
+    writing_score: float
+    average_band: float
+    cefr: str
+    status: str
+
 # Submission Schemas
 class SubmissionCreateWriting(BaseModel):
     question_id: int
@@ -144,6 +210,7 @@ class SubmissionCreateWriting(BaseModel):
 class SubmissionResponse(BaseModel):
     id: int
     user_id: int
+    user_name: Optional[str] = None
     question_id: int
     submission_type: SkillType
     content_text: Optional[str] = None
@@ -213,6 +280,72 @@ class LearnerDashboardStats(BaseModel):
     skill_radar: List[SkillRadarItem]
     trend_history: List[TrendPoint]
     recommended_questions: List[QuestionResponse]
+
+
+class LearnerAssignmentResponse(BaseModel):
+    id: int
+    question_id: int
+    title: str
+    skill: SkillType
+    part: str
+    task_number: int
+    description: str
+    teacher_name: str
+    assigned_at: datetime
+    deadline: Optional[datetime] = None
+    duration: str
+    status: str
+    progress: int
+    submission_id: Optional[int] = None
+
+
+class LearnerProgressItem(BaseModel):
+    label: str
+    practices: int
+    avg_score: float
+
+
+class LearnerSkillAnalysisItem(BaseModel):
+    criterion: str
+    percentage: float
+
+
+class LearnerRecentActivityItem(BaseModel):
+    id: int
+    skill: SkillType
+    part: str
+    score: float
+    cefr: str
+    created_at: datetime
+
+
+class LearnerWeeklyActivityItem(BaseModel):
+    date: str
+    practiced: int
+    speaking: int
+    writing: int
+    total_minutes: int
+
+
+class LearnerProgressResponse(BaseModel):
+    total_practices: int
+    speaking_practices: int
+    writing_practices: int
+    average_band: float
+    speaking_average: float
+    writing_average: float
+    current_cefr: str
+    target_cefr: str
+    overall_progress: float
+    trend_history: List[TrendPoint]
+    speaking_parts: List[LearnerProgressItem]
+    writing_tasks: List[LearnerProgressItem]
+    speaking_skill_analysis: List[LearnerSkillAnalysisItem]
+    writing_skill_analysis: List[LearnerSkillAnalysisItem]
+    recent_activity: List[LearnerRecentActivityItem]
+    weekly_activity: List[LearnerWeeklyActivityItem]
+    weekly_completed: int
+    weekly_goal: int
 
 class NotificationResponse(BaseModel):
     id: int

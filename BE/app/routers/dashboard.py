@@ -2,10 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, timedelta
+from collections import defaultdict
 from app.database import get_db
 from app.models import Submission, Assessment, Question, Notification, User, SkillType
 from app.schemas import (
-    LearnerDashboardStats, SkillRadarItem, TrendPoint, QuestionResponse, NotificationResponse
+    LearnerDashboardStats, SkillRadarItem, TrendPoint, QuestionResponse, NotificationResponse,
+    LearnerProgressResponse, LearnerProgressItem, LearnerSkillAnalysisItem,
+    LearnerRecentActivityItem, LearnerWeeklyActivityItem
 )
 from app.core.dependencies import get_current_user
 from app.ai.cefr_mapper import ielts_band_to_cefr
@@ -88,6 +91,112 @@ def get_learner_dashboard(
         skill_radar=skill_radar,
         trend_history=trend_history,
         recommended_questions=[QuestionResponse.model_validate(q) for q in recommended]
+    )
+
+
+@router.get("/learner/progress", response_model=LearnerProgressResponse)
+def get_learner_progress(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    submissions = (
+        db.query(Submission)
+        .filter(Submission.user_id == current_user.id)
+        .order_by(Submission.created_at.asc())
+        .all()
+    )
+    evaluated = [submission for submission in submissions if submission.assessment]
+    scores = [submission.assessment.overall_band for submission in evaluated]
+    speaking = [submission for submission in evaluated if submission.submission_type == SkillType.SPEAKING]
+    writing = [submission for submission in evaluated if submission.submission_type == SkillType.WRITING]
+
+    def average(items):
+        return round(sum(items) / len(items), 1) if items else 0.0
+
+    def grouped_progress(items):
+        grouped = defaultdict(list)
+        for submission in items:
+            grouped[submission.question.part if submission.question else "Unknown"].append(
+                submission.assessment.overall_band
+            )
+        return [
+            LearnerProgressItem(label=label, practices=len(values), avg_score=average(values))
+            for label, values in grouped.items()
+        ]
+
+    speaking_metrics = {
+        "Fluency": [s.assessment.fluency_score for s in speaking if s.assessment.fluency_score is not None],
+        "Coherence": [s.assessment.coherence_score for s in speaking if s.assessment.coherence_score is not None],
+        "Lexical Resource": [s.assessment.lexical_score for s in speaking if s.assessment.lexical_score is not None],
+        "Pronunciation": [s.assessment.pronunciation_score for s in speaking if s.assessment.pronunciation_score is not None],
+    }
+    writing_metrics = {
+        "Task Response": [s.assessment.task_response_score for s in writing if s.assessment.task_response_score is not None],
+        "Grammar": [s.assessment.grammar_score for s in writing if s.assessment.grammar_score is not None],
+        "Vocabulary": [s.assessment.lexical_score for s in writing if s.assessment.lexical_score is not None],
+        "Coherence": [s.assessment.coherence_score for s in writing if s.assessment.coherence_score is not None],
+    }
+
+    def analysis(metrics):
+        return [
+            LearnerSkillAnalysisItem(criterion=name, percentage=round(average(values) / 9 * 100, 1) if values else 0)
+            for name, values in metrics.items()
+        ]
+
+    trend_history = [
+        TrendPoint(
+            date=submission.created_at.strftime("%b %d"),
+            band=submission.assessment.overall_band,
+            type=submission.submission_type.value,
+        )
+        for submission in evaluated
+    ]
+    weekly_start = datetime.utcnow() - timedelta(days=7)
+    weekly_completed = sum(1 for submission in submissions if submission.created_at >= weekly_start)
+    target_score = float(current_user.target_score or 7.0)
+    weekly_activity = []
+    for day_offset in range(6, -1, -1):
+        day = (datetime.utcnow() - timedelta(days=day_offset)).date()
+        day_submissions = [s for s in submissions if s.created_at.date() == day]
+        weekly_activity.append(
+            LearnerWeeklyActivityItem(
+                date=day.strftime("%d/%m"),
+                practiced=len(day_submissions),
+                speaking=sum(1 for s in day_submissions if s.submission_type == SkillType.SPEAKING),
+                writing=sum(1 for s in day_submissions if s.submission_type == SkillType.WRITING),
+                total_minutes=round(sum(s.duration_seconds for s in day_submissions) / 60),
+            )
+        )
+
+    return LearnerProgressResponse(
+        total_practices=len(submissions),
+        speaking_practices=sum(1 for s in submissions if s.submission_type == SkillType.SPEAKING),
+        writing_practices=sum(1 for s in submissions if s.submission_type == SkillType.WRITING),
+        average_band=average(scores),
+        speaking_average=average([s.assessment.overall_band for s in speaking]),
+        writing_average=average([s.assessment.overall_band for s in writing]),
+        current_cefr=ielts_band_to_cefr(average(scores)) if scores else "A1",
+        target_cefr=ielts_band_to_cefr(target_score),
+        overall_progress=round(min(100, len(submissions) / 20 * 100), 1),
+        trend_history=trend_history,
+        speaking_parts=grouped_progress(speaking),
+        writing_tasks=grouped_progress(writing),
+        speaking_skill_analysis=analysis(speaking_metrics),
+        writing_skill_analysis=analysis(writing_metrics),
+        recent_activity=[
+            LearnerRecentActivityItem(
+                id=submission.id,
+                skill=submission.submission_type,
+                part=submission.question.part if submission.question else "Unknown",
+                score=submission.assessment.overall_band,
+                cefr=submission.assessment.overall_cefr,
+                created_at=submission.created_at,
+            )
+            for submission in evaluated[-10:][::-1]
+        ],
+        weekly_activity=weekly_activity,
+        weekly_completed=weekly_completed,
+        weekly_goal=5,
     )
 
 @router.get("/notifications", response_model=List[NotificationResponse])

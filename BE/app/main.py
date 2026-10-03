@@ -8,7 +8,7 @@ from app.config import settings
 from app.database import engine, Base, SessionLocal
 from app.seeds.seed_data import seed_database
 from app.routers import (
-    auth, questions, submissions, reviews, dashboard, chat, admin, ai_test
+    auth, questions, submissions, reviews, dashboard, chat, admin, ai_test, assignments, teacher_analytics
 )
 
 logging.basicConfig(
@@ -54,7 +54,7 @@ app = FastAPI(
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -73,6 +73,8 @@ app.include_router(dashboard.router)
 app.include_router(chat.router)
 app.include_router(admin.router)
 app.include_router(ai_test.router)
+app.include_router(assignments.router)
+app.include_router(teacher_analytics.router)
 
 # Keep TestClient/import-mode usage safe even when lifespan is not entered.
 initialize_database()

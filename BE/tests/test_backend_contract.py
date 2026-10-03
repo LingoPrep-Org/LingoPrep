@@ -35,6 +35,89 @@ def test_openapi_contract_exposes_core_tags_and_security_scheme():
     assert spec["info"]["title"] == "LingoPrep API"
 
 
+def test_auth_refresh_returns_new_tokens_and_rejects_invalid_token():
+    response = client.post(
+        "/api/auth/login",
+        json={"email": "learner@lingoprep.com", "password": "123456"},
+    )
+    assert response.status_code == 200, response.text
+    tokens = response.json()
+    assert tokens["refresh_token"]
+
+    refreshed = client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": tokens["refresh_token"]},
+    )
+    assert refreshed.status_code == 200, refreshed.text
+    assert refreshed.json()["access_token"]
+    assert client.post(
+        "/api/auth/refresh", json={"refresh_token": "invalid-token"}
+    ).status_code == 401
+
+
+def test_admin_can_update_user_status_but_cannot_disable_self():
+    admin_response = client.post(
+        "/api/auth/login",
+        json={"email": "admin@lingoprep.com", "password": "123456"},
+    )
+    assert admin_response.status_code == 200, admin_response.text
+    admin_token = admin_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {admin_token}"}
+
+    users = client.get("/api/admin/users", headers=headers)
+    assert users.status_code == 200, users.text
+    learner = next(user for user in users.json() if user["role"] == "LEARNER")
+
+    updated = client.put(
+        f"/api/admin/users/{learner['id']}/status",
+        headers=headers,
+        json={"is_active": False},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["is_active"] is False
+
+    admin = next(user for user in users.json() if user["role"] == "ADMIN")
+    self_update = client.put(
+        f"/api/admin/users/{admin['id']}/status",
+        headers=headers,
+        json={"is_active": False},
+    )
+    assert self_update.status_code == 400
+
+    client.put(
+        f"/api/admin/users/{learner['id']}/status",
+        headers=headers,
+        json={"is_active": True},
+    )
+
+
+def test_learner_assignments_are_derived_from_questions_and_submissions():
+    headers = login("learner@lingoprep.com")
+    response = client.get("/api/assignments", headers=headers)
+
+    assert response.status_code == 200, response.text
+    assignments = response.json()
+    assert assignments
+    assert {"question_id", "skill", "part", "task_number", "status"}.issubset(
+        assignments[0]
+    )
+    assert all(item["status"] in {"NOT_STARTED", "SUBMITTED"} for item in assignments)
+
+
+def test_learner_progress_is_computed_from_real_submissions():
+    headers = login("learner@lingoprep.com")
+    response = client.get("/api/dashboard/learner/progress", headers=headers)
+
+    assert response.status_code == 200, response.text
+    progress = response.json()
+    assert progress["total_practices"] >= 0
+    assert "trend_history" in progress
+    assert "speaking_parts" in progress
+    assert "writing_tasks" in progress
+    assert "speaking_skill_analysis" in progress
+    assert "writing_skill_analysis" in progress
+
+
 def test_admin_metadata_endpoints_cover_rubrics_profiles_jobs_and_audit_logs():
     headers = login("admin@lingoprep.com")
 

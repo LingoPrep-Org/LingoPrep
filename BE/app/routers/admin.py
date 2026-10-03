@@ -6,7 +6,7 @@ from app.models import User, Submission, Assessment, Question, UserRole, Rubric,
 from app.schemas import (
     UserResponse, RubricResponse, RubricCreate, RubricUpdate,
     AIProfileResponse, AIProfileCreate, AIProfileUpdate,
-    AssessmentJobResponse, AuditLogResponse
+    AssessmentJobResponse, AuditLogResponse, UserStatusUpdate
 )
 from app.core.dependencies import require_admin
 from app.config import settings
@@ -229,3 +229,28 @@ def update_user_role(
     ))
     db.commit()
     return {"message": "User role updated successfully", "new_role": role.value}
+
+
+@router.put("/users/{user_id}/status")
+def update_user_status(
+    user_id: int,
+    payload: UserStatusUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user.id == admin.id and not payload.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot disable your own account")
+
+    user.is_active = payload.is_active
+    db.add(AuditLog(
+        actor_user_id=admin.id,
+        action="USER_ACTIVATED" if payload.is_active else "USER_DEACTIVATED",
+        entity_type="User",
+        entity_id=str(user.id),
+        metadata_json={"is_active": payload.is_active}
+    ))
+    db.commit()
+    return {"message": "User status updated successfully", "is_active": user.is_active}

@@ -183,3 +183,17 @@ CREATE TABLE audit_logs (
 CREATE INDEX ix_audit_logs_actor_user_id ON audit_logs(actor_user_id);
 CREATE INDEX ix_audit_logs_action ON audit_logs(action);
 CREATE INDEX ix_audit_logs_created_at ON audit_logs(created_at);
+CREATE TABLE IF NOT EXISTS teacher_assignments (
+    id SERIAL PRIMARY KEY,
+    teacher_id INTEGER NOT NULL REFERENCES users(id),
+    question_id INTEGER NOT NULL REFERENCES questions(id),
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    learner_ids JSON NOT NULL,
+    start_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    due_date TIMESTAMP NULL,
+    duration INTEGER NOT NULL DEFAULT 15,
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

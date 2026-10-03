@@ -2,8 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User, UserRole
-from app.schemas import UserCreate, UserLogin, UserResponse, Token
-from app.core.security import verify_password, get_password_hash, create_access_token
+from app.schemas import UserCreate, UserLogin, UserResponse, Token, RefreshTokenRequest
+from app.core.security import (
+    verify_password,
+    get_password_hash,
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+)
 from app.core.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -29,9 +35,10 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    access_token = create_access_token(data={"sub": str(new_user.id), "role": new_user.role.value})
+    token_data = {"sub": str(new_user.id), "role": new_user.role.value}
     return Token(
-        access_token=access_token,
+        access_token=create_access_token(data=token_data),
+        refresh_token=create_refresh_token(data=token_data),
         token_type="bearer",
         user=UserResponse.model_validate(new_user)
     )
@@ -50,11 +57,39 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
             detail="Account is disabled"
         )
 
-    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
+    token_data = {"sub": str(user.id), "role": user.role.value}
     return Token(
-        access_token=access_token,
+        access_token=create_access_token(data=token_data),
+        refresh_token=create_refresh_token(data=token_data),
         token_type="bearer",
         user=UserResponse.model_validate(user)
+    )
+
+
+@router.post("/refresh", response_model=Token)
+def refresh_token(payload: RefreshTokenRequest, db: Session = Depends(get_db)):
+    token_data = decode_refresh_token(payload.refresh_token)
+    if not token_data or not token_data.get("sub"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token is invalid or expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = db.query(User).filter(User.id == int(token_data["sub"])).first()
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User is not available",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    new_token_data = {"sub": str(user.id), "role": user.role.value}
+    return Token(
+        access_token=create_access_token(data=new_token_data),
+        refresh_token=create_refresh_token(data=new_token_data),
+        token_type="bearer",
+        user=UserResponse.model_validate(user),
     )
 
 @router.get("/me", response_model=UserResponse)

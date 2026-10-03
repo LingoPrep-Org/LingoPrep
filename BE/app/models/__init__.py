@@ -75,6 +75,25 @@ class Question(Base):
 
     submissions = relationship("Submission", back_populates="question")
 
+class TeacherAssignment(Base):
+    __tablename__ = "teacher_assignments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    question_id = Column(Integer, ForeignKey("questions.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, default="")
+    learner_ids = Column(JSON, nullable=False, default=list)
+    start_date = Column(DateTime, nullable=False, default=datetime.utcnow)
+    due_date = Column(DateTime, nullable=True)
+    duration = Column(Integer, nullable=False, default=15)
+    status = Column(String(20), nullable=False, default="DRAFT")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    teacher = relationship("User")
+    question = relationship("Question")
+
 class Submission(Base):
     __tablename__ = "submissions"
 
@@ -94,6 +113,10 @@ class Submission(Base):
     question = relationship("Question", back_populates="submissions")
     assessment = relationship("Assessment", back_populates="submission", uselist=False, cascade="all, delete-orphan")
     teacher_review = relationship("TeacherReview", back_populates="submission", uselist=False, cascade="all, delete-orphan")
+
+    @property
+    def user_name(self):
+        return self.user.full_name if self.user else None
 
 class Assessment(Base):
     __tablename__ = "assessments"

@@ -31,24 +31,25 @@ copy .env.example .env
 
 Important variables:
 
-| Variable | Required | Example | Notes |
-| --- | --- | --- | --- |
-| `PROJECT_NAME` | yes | `LingoPrep API` | FastAPI project name. |
-| `DATABASE_URL` | yes | `postgresql://postgres:postgres@localhost:5433/lingoprep` | If PostgreSQL is unavailable, app falls back to SQLite for local demo. |
-| `JWT_SECRET_KEY` | yes | `change-this-secret-in-production` | Required for JWT signing. Change in production. |
-| `JWT_ALGORITHM` | yes | `HS256` | JWT algorithm. |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | yes | `1440` | Token lifetime. |
-| `CORS_ORIGINS` | yes | `["http://localhost:5173"]` | Frontend origins allowed. |
-| `AI_PROVIDER` | yes | `local` | `local` works without paid AI keys. |
-| `OPENAI_API_KEY` | optional | empty or key | Only needed if you wire OpenAI provider. |
-| `GEMINI_API_KEY` | optional | empty or key | Only needed if you wire Gemini provider. |
-| `UPLOAD_DIR` | yes | `./uploads` | Local audio/TTS artifact fallback. |
-| `REDIS_URL` | yes for full stack | `redis://localhost:6379/0` | Redis cache/queue-ready infra. |
-| `OBJECT_STORAGE_ENDPOINT` | yes for MinIO | `localhost:9000` | MinIO/S3 endpoint. |
-| `OBJECT_STORAGE_ACCESS_KEY` | yes for MinIO | `minioadmin` | MinIO user/access key. |
-| `OBJECT_STORAGE_SECRET_KEY` | yes for MinIO | `minioadmin` | MinIO password/secret key. |
-| `OBJECT_STORAGE_BUCKET` | yes for MinIO | `lingoprep-uploads` | Bucket auto-created when MinIO is available. |
-| `OBJECT_STORAGE_SECURE` | yes | `false` | `true` only for HTTPS object storage. |
+| Variable                      | Required           | Example                                                   | Notes                                                                  |
+| ----------------------------- | ------------------ | --------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `PROJECT_NAME`                | yes                | `LingoPrep API`                                           | FastAPI project name.                                                  |
+| `DATABASE_URL`                | yes                | `postgresql://postgres:postgres@localhost:5433/lingoprep` | If PostgreSQL is unavailable, app falls back to SQLite for local demo. |
+| `JWT_SECRET_KEY`              | yes                | `change-this-secret-in-production`                        | Required for JWT signing. Change in production.                        |
+| `JWT_ALGORITHM`               | yes                | `HS256`                                                   | JWT algorithm.                                                         |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | yes                | `1440`                                                    | Token lifetime.                                                        |
+| `REFRESH_TOKEN_EXPIRE_DAYS`   | yes                | `7`                                                       | Refresh token lifetime.                                                |
+| `CORS_ORIGINS`                | yes                | `["http://localhost:5173"]`                               | Frontend origins allowed.                                              |
+| `AI_PROVIDER`                 | yes                | `local`                                                   | `local` works without paid AI keys.                                    |
+| `OPENAI_API_KEY`              | optional           | empty or key                                              | Only needed if you wire OpenAI provider.                               |
+| `GEMINI_API_KEY`              | optional           | empty or key                                              | Only needed if you wire Gemini provider.                               |
+| `UPLOAD_DIR`                  | yes                | `./uploads`                                               | Local audio/TTS artifact fallback.                                     |
+| `REDIS_URL`                   | yes for full stack | `redis://localhost:6379/0`                                | Redis cache/queue-ready infra.                                         |
+| `OBJECT_STORAGE_ENDPOINT`     | yes for MinIO      | `localhost:9000`                                          | MinIO/S3 endpoint.                                                     |
+| `OBJECT_STORAGE_ACCESS_KEY`   | yes for MinIO      | `minioadmin`                                              | MinIO user/access key.                                                 |
+| `OBJECT_STORAGE_SECRET_KEY`   | yes for MinIO      | `minioadmin`                                              | MinIO password/secret key.                                             |
+| `OBJECT_STORAGE_BUCKET`       | yes for MinIO      | `lingoprep-uploads`                                       | Bucket auto-created when MinIO is available.                           |
+| `OBJECT_STORAGE_SECURE`       | yes                | `false`                                                   | `true` only for HTTPS object storage.                                  |
 
 Minimum local development without paid keys:
 
@@ -122,15 +123,15 @@ docker compose up --build
 
 Services:
 
-| Service | URL/port |
-| --- | --- |
-| Backend | `http://localhost:8000` |
-| Swagger | `http://localhost:8000/docs` |
-| Frontend | `http://localhost:5173` |
-| PostgreSQL | `localhost:5433` |
-| Redis | `localhost:6379` |
-| MinIO API | `http://localhost:9000` |
-| MinIO Console | `http://localhost:9001` |
+| Service       | URL/port                     |
+| ------------- | ---------------------------- |
+| Backend       | `http://localhost:8000`      |
+| Swagger       | `http://localhost:8000/docs` |
+| Frontend      | `http://localhost:5173`      |
+| PostgreSQL    | `localhost:5433`             |
+| Redis         | `localhost:6379`             |
+| MinIO API     | `http://localhost:9000`      |
+| MinIO Console | `http://localhost:9001`      |
 
 MinIO console login defaults:
 
@@ -958,32 +959,35 @@ F:/LingoPrep/FE/src/services/api.ts
 Base URL:
 
 ```ts
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = "http://localhost:8000/api";
 ```
 
 ### 9.1 Login from frontend
 
 ```ts
 const login = async () => {
-  const res = await fetch('http://localhost:8000/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  const res = await fetch("http://localhost:8000/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      email: 'learner@lingoprep.com',
-      password: '123456',
+      email: "learner@lingoprep.com",
+      password: "123456",
     }),
   });
   const data = await res.json();
-  localStorage.setItem('lingoprep_token', data.access_token);
-  localStorage.setItem('lingoprep_user', JSON.stringify(data.user));
+  localStorage.setItem("lingoprep_token", data.access_token);
+  localStorage.setItem("lingoprep_user", JSON.stringify(data.user));
 };
 ```
 
 ### 9.2 Shared authenticated request helper
 
 ```ts
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('lingoprep_token');
+async function request<T>(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const token = localStorage.getItem("lingoprep_token");
   const headers: HeadersInit = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
@@ -996,7 +1000,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || 'API request failed');
+    throw new Error(err.detail || "API request failed");
   }
 
   return res.json();
@@ -1006,18 +1010,19 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 ### 9.3 Get question bank
 
 ```ts
-const questions = await request('/questions?exam_type=IELTS&skill=WRITING');
+const questions = await request("/questions?exam_type=IELTS&skill=WRITING");
 ```
 
 ### 9.4 Submit Writing
 
 ```ts
-const submission = await request('/submissions/writing', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+const submission = await request("/submissions/writing", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     question_id: 5,
-    content_text: 'In modern society, higher education plays an important role...',
+    content_text:
+      "In modern society, higher education plays an important role...",
   }),
 });
 ```
@@ -1026,16 +1031,16 @@ const submission = await request('/submissions/writing', {
 
 ```ts
 const formData = new FormData();
-formData.append('question_id', '1');
-formData.append('duration_seconds', '45');
-formData.append('transcript', 'Well, I am currently a university student...');
+formData.append("question_id", "1");
+formData.append("duration_seconds", "45");
+formData.append("transcript", "Well, I am currently a university student...");
 
 // Optional audio Blob from MediaRecorder:
 // formData.append('audio_file', audioBlob, 'recording.webm');
 
-const token = localStorage.getItem('lingoprep_token');
-const res = await fetch('http://localhost:8000/api/submissions/speaking', {
-  method: 'POST',
+const token = localStorage.getItem("lingoprep_token");
+const res = await fetch("http://localhost:8000/api/submissions/speaking", {
+  method: "POST",
   headers: token ? { Authorization: `Bearer ${token}` } : {},
   body: formData,
 });
@@ -1048,7 +1053,7 @@ Do not set `Content-Type` manually for `FormData`; browser sets multipart bounda
 
 ```ts
 await request(`/submissions/${submissionId}/request-review`, {
-  method: 'POST',
+  method: "POST",
 });
 ```
 
@@ -1056,18 +1061,18 @@ await request(`/submissions/${submissionId}/request-review`, {
 
 ```ts
 await request(`/reviews/${submissionId}`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     overall_band: 7.0,
-    overall_cefr: 'C1',
+    overall_cefr: "C1",
     criteria_scores: {
       fluency: 7,
       lexical: 7,
       grammar: 6.5,
       pronunciation: 7,
     },
-    teacher_notes: 'Good structure. Improve pronunciation consistency.',
+    teacher_notes: "Good structure. Improve pronunciation consistency.",
   }),
 });
 ```
@@ -1075,8 +1080,8 @@ await request(`/reviews/${submissionId}`, {
 ### 9.8 Admin call example
 
 ```ts
-const stats = await request('/admin/stats');
-const infra = await request('/admin/infra/status');
+const stats = await request("/admin/stats");
+const infra = await request("/admin/infra/status");
 ```
 
 ### 9.9 Frontend role testing sequence
